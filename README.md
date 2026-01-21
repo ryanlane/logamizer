@@ -1,2 +1,2 @@
 # logamizer
-A lightweight “log insight + security signal” tool
+A lightweight "log insight + security signal" tool
