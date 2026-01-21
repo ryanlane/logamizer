@@ -1,0 +1,1 @@
+"""Logamizer API application."""
