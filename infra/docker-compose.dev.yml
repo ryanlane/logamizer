@@ -1,0 +1,21 @@
+# Development overrides
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ../apps:/app/apps
+      - ../packages:/app/packages
+    environment:
+      - DEBUG=true
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.worker
+    command: celery -A apps.worker.celery_app worker --loglevel=debug
+    volumes:
+      - ../apps:/app/apps
+      - ../packages:/app/packages
