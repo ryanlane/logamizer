@@ -1,6 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiFetch, getStoredToken } from "./client";
-import type { DashboardResponse, Finding, Job, Site } from "../types";
+import type { DashboardResponse, Finding, Site } from "../types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Job } from "../types";
 
 export function useSites() {
   const token = getStoredToken();
@@ -28,6 +30,7 @@ export function useFindings(siteId?: string) {
     enabled: Boolean(siteId && token),
   });
 }
+
 
 export function useJob(jobId?: string) {
   const token = getStoredToken();
@@ -68,8 +71,8 @@ export function useCreateSite() {
 
 type UploadUrlResponse = {
   upload_url: string;
-  storage_key: string;
   log_file_id: string;
+  expires_in?: number;
 };
 
 export function useGetUploadUrl() {
@@ -81,11 +84,6 @@ export function useGetUploadUrl() {
       }),
   });
 }
-
-type ConfirmUploadResponse = {
-  log_file: { id: string; filename: string; status: string };
-  job: Job;
-};
 
 export function useConfirmUpload() {
   const queryClient = useQueryClient();
@@ -100,19 +98,42 @@ export function useConfirmUpload() {
       logFileId: string;
       sizeBytes: number;
     }) =>
-      apiFetch<ConfirmUploadResponse>(`/api/sites/${siteId}/uploads`, {
+      apiFetch<Job>(`/api/sites/${siteId}/uploads`, {
         method: "POST",
         body: JSON.stringify({ log_file_id: logFileId, size_bytes: sizeBytes }),
       }),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["dashboard", variables.siteId] });
-      queryClient.invalidateQueries({ queryKey: ["findings", variables.siteId] });
-    },
+    onSuccess: (_, variables) =>
+      queryClient.invalidateQueries({ queryKey: ["dashboard", variables.siteId] }),
   });
 }
 
+function normalizeUploadUrl(url: string): string {
+  const publicEndpoint = import.meta.env.VITE_S3_PUBLIC_ENDPOINT_URL as string | undefined;
+  if (publicEndpoint) {
+    try {
+      const target = new URL(publicEndpoint);
+      const original = new URL(url);
+      original.protocol = target.protocol;
+      original.host = target.host;
+      return original.toString();
+    } catch {
+      return url;
+    }
+  }
+
+  if (
+    url.startsWith("http://minio:9000") &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+  ) {
+    return url.replace("http://minio:9000", "http://localhost:9000");
+  }
+
+  return url;
+}
+
 export async function uploadFileToS3(url: string, file: File): Promise<void> {
-  const response = await fetch(url, {
+  const uploadUrl = normalizeUploadUrl(url);
+  const response = await fetch(uploadUrl, {
     method: "PUT",
     body: file,
     headers: {
@@ -148,3 +169,4 @@ export function useExplain() {
       }),
   });
 }
+

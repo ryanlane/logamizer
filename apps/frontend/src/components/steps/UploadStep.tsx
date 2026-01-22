@@ -58,7 +58,7 @@ export function UploadStep({ site, onComplete, onBack }: Props) {
         setUploadState({ status: "uploading", filename: file.name, progress: 70 });
 
         // Step 3: Confirm upload and start processing
-        const { job } = await confirmUpload.mutateAsync({
+        const job = await confirmUpload.mutateAsync({
           siteId: site.id,
           logFileId: log_file_id,
           sizeBytes: file.size,

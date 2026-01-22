@@ -51,7 +51,7 @@ export type Job = {
   id: string;
   log_file_id: string;
   job_type: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: string;
   progress: number;
   result_summary: string | null;
   error_message: string | null;
