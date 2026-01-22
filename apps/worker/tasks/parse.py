@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import boto3
@@ -25,6 +25,8 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 from apps.worker.celery_app import celery_app
 from apps.worker.parsers import ApacheCombinedParser, NginxCombinedParser, Parser
 from apps.worker.utils.aggregator import Aggregator
+from apps.worker.utils.anomaly import AggregateSnapshot, detect_anomalies
+from apps.worker.utils.security import detect_security_findings
 from packages.shared.enums import JobStatus, LogFileStatus
 
 # Sync database URL (Celery doesn't use async)
@@ -114,6 +116,24 @@ class Aggregate(Base):
     top_ips = Column(JSON, nullable=True)
     top_user_agents = Column(JSON, nullable=True)
     top_status_codes = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Finding(Base):
+    """Finding model for worker."""
+
+    __tablename__ = "findings"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    site_id = Column(UUID(as_uuid=False), nullable=False)
+    log_file_id = Column(UUID(as_uuid=False), nullable=True)
+    finding_type = Column(String(100), nullable=False)
+    severity = Column(String(20), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    evidence = Column(JSON, nullable=True)
+    suggested_action = Column(Text, nullable=True)
+    metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -213,6 +233,7 @@ def parse_log_file(self, job_id: str) -> dict:
         db.commit()
 
         # Store aggregates in database
+        created_aggregates: list[Aggregate] = []
         for bucket in aggregation.hourly_buckets:
             bucket_data = bucket.to_dict()
             aggregate = Aggregate(
@@ -233,8 +254,89 @@ def parse_log_file(self, job_id: str) -> dict:
                 top_status_codes=bucket_data["top_status_codes"],
             )
             db.add(aggregate)
+            created_aggregates.append(aggregate)
 
         db.commit()
+
+        # Detect and store security findings
+        findings = detect_security_findings(parse_result.events)
+        for finding in findings:
+            db.add(
+                Finding(
+                    site_id=site.id,
+                    log_file_id=log_file.id,
+                    finding_type=finding.finding_type,
+                    severity=finding.severity,
+                    title=finding.title,
+                    description=finding.description,
+                    evidence=finding.evidence,
+                    suggested_action=finding.suggested_action,
+                    metadata_json=finding.metadata,
+                )
+            )
+
+        db.commit()
+
+        # Detect and store anomaly findings based on aggregates
+        if created_aggregates:
+            earliest_hour = min(a.hour_bucket for a in created_aggregates)
+            baseline_start = earliest_hour - timedelta(days=7)
+
+            baseline_query = (
+                db.query(Aggregate)
+                .filter(
+                    Aggregate.site_id == site.id,
+                    Aggregate.hour_bucket >= baseline_start,
+                )
+                .order_by(Aggregate.hour_bucket.asc())
+            )
+            baseline_aggregates = baseline_query.all()
+
+            site_snapshots = [
+                AggregateSnapshot(
+                    hour_bucket=a.hour_bucket,
+                    requests_count=a.requests_count,
+                    status_5xx=a.status_5xx,
+                    unique_ips=a.unique_ips,
+                    top_paths=a.top_paths,
+                )
+                for a in baseline_aggregates
+            ]
+
+            target_snapshots = [
+                AggregateSnapshot(
+                    hour_bucket=a.hour_bucket,
+                    requests_count=a.requests_count,
+                    status_5xx=a.status_5xx,
+                    unique_ips=a.unique_ips,
+                    top_paths=a.top_paths,
+                )
+                for a in created_aggregates
+            ]
+
+            anomaly_findings = detect_anomalies(
+                site_snapshots,
+                target_snapshots,
+            )
+
+            for finding in anomaly_findings:
+                db.add(
+                    Finding(
+                        site_id=site.id,
+                        log_file_id=log_file.id,
+                        finding_type=finding.finding_type,
+                        severity=finding.severity,
+                        title=finding.title,
+                        description=finding.description,
+                        evidence=finding.evidence,
+                        suggested_action=finding.suggested_action,
+                        metadata_json=finding.metadata,
+                    )
+                )
+
+            db.commit()
+        else:
+            anomaly_findings = []
 
         job.progress = 90.0
         db.commit()
@@ -247,6 +349,8 @@ def parse_log_file(self, job_id: str) -> dict:
             "size_bytes": log_file.size_bytes,
             "parse_stats": parse_result.to_dict(),
             "aggregation": aggregation.to_dict(),
+            "findings": [finding.to_dict() for finding in findings],
+            "anomalies": [finding.to_dict() for finding in anomaly_findings],
         }
 
         # Update job as completed
