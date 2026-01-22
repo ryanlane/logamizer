@@ -154,7 +154,6 @@ pytest
 - [x] Phase 2: Log Parsing (Nginx/Apache combined formats)
 - [x] Phase 3: Security Signals (Rule-based detection)
 - [x] Phase 4: Anomaly Detection (Statistical baselines)
-- [ ] Phase 5: Ollama Integration (LLM explanations)
 - [x] Phase 5: Ollama Integration (LLM explanations)
 - [x] Phase 6: React Frontend
 
