@@ -24,11 +24,26 @@ def get_s3_client():
     )
 
 
+@lru_cache
+def get_presign_client():
+    """Get cached S3 client for presigned URLs (public endpoint)."""
+    endpoint = settings.s3_public_endpoint_url or settings.s3_endpoint_url
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=settings.s3_access_key_id,
+        aws_secret_access_key=settings.s3_secret_access_key,
+        region_name=settings.s3_region,
+        config=Config(signature_version="s3v4"),
+    )
+
+
 class StorageService:
     """Service for S3/MinIO storage operations."""
 
     def __init__(self):
         self.client = get_s3_client()
+        self.presign_client = get_presign_client()
         self.bucket = settings.s3_bucket_name
 
     def ensure_bucket_exists(self) -> None:
@@ -45,7 +60,7 @@ class StorageService:
         expires_in: int = PRESIGNED_URL_EXPIRY,
     ) -> str:
         """Generate a presigned URL for uploading a file."""
-        return self.client.generate_presigned_url(
+        return self.presign_client.generate_presigned_url(
             "put_object",
             Params={
                 "Bucket": self.bucket,
@@ -61,7 +76,7 @@ class StorageService:
         expires_in: int = PRESIGNED_URL_EXPIRY,
     ) -> str:
         """Generate a presigned URL for downloading a file."""
-        return self.client.generate_presigned_url(
+        return self.presign_client.generate_presigned_url(
             "get_object",
             Params={
                 "Bucket": self.bucket,
