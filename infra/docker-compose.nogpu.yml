@@ -1,0 +1,10 @@
+# Docker Compose override for systems without GPU
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.nogpu.yml up
+
+services:
+  ollama:
+    # Override to remove GPU requirements - Ollama will run on CPU
+    deploy:
+      resources:
+        limits:
+          memory: 8G

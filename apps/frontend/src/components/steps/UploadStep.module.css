@@ -1,0 +1,167 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+/* Progress State */
+.progressContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl) 0;
+}
+
+.progressIcon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.progressText {
+  text-align: center;
+}
+
+.progressText strong {
+  display: block;
+  font-size: 16px;
+  color: var(--color-gray-900);
+  margin-bottom: 4px;
+}
+
+.progressText span {
+  font-size: 14px;
+  color: var(--color-gray-500);
+}
+
+.progressBar {
+  width: 100%;
+  max-width: 300px;
+  height: 6px;
+  background: var(--color-gray-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+/* Success State */
+.successContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl) 0;
+}
+
+.successIcon {
+  animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.successText {
+  text-align: center;
+}
+
+.successText strong {
+  display: block;
+  font-size: 18px;
+  color: var(--color-gray-900);
+  margin-bottom: 4px;
+}
+
+.successText span {
+  font-size: 14px;
+  color: var(--color-gray-500);
+}
+
+/* Error State */
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl) 0;
+}
+
+.errorIcon {
+  animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.errorText {
+  text-align: center;
+}
+
+.errorText strong {
+  display: block;
+  font-size: 18px;
+  color: var(--color-danger);
+  margin-bottom: 4px;
+}
+
+.errorText span {
+  font-size: 14px;
+  color: var(--color-gray-500);
+}
+
+/* Tips */
+.tips {
+  padding: var(--spacing-lg);
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.tips strong {
+  display: block;
+  font-size: 14px;
+  color: var(--color-gray-900);
+  margin-bottom: var(--spacing-sm);
+}
+
+.tips ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.tips li {
+  font-size: 13px;
+  color: var(--color-gray-600);
+  line-height: 1.6;
+}

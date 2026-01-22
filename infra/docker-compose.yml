@@ -64,6 +64,9 @@ services:
       - S3_SECRET_ACCESS_KEY=minioadmin
       - S3_BUCKET_NAME=logamizer-logs
       - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8080"]
+      - OLLAMA_ENABLED=true
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2
     ports:
       - "8000:8000"
     depends_on:
@@ -73,6 +76,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      # Note: ollama dependency removed to allow API to start without it
+      # Ollama features will be unavailable until ollama container is healthy
     volumes:
       - ../apps:/app/apps:ro
       - ../packages:/app/packages:ro
@@ -101,16 +106,42 @@ services:
       - ../apps:/app/apps:ro
       - ../packages:/app/packages:ro
 
+  # Ollama for LLM-powered explanations
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Ollama model puller (runs once to download the model)
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["ollama", "pull", "llama3.2"]
+    restart: "no"
+
   # Nginx reverse proxy (optional, for production-like setup)
   nginx:
-    image: nginx:alpine
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.nginx
     ports:
       - "8080:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - api
 
 volumes:
   postgres_data:
   minio_data:
+  ollama_data:

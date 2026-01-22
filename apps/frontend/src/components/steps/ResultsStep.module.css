@@ -1,0 +1,180 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-2xl);
+  color: var(--color-gray-500);
+}
+
+.spinner svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-gray-900);
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--color-gray-500);
+}
+
+.headerActions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chartCard,
+.overviewCard {
+  min-height: 300px;
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--spacing-2xl);
+}
+
+.emptyIcon {
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-gray-300);
+}
+
+.emptyState h2 {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.emptyState p {
+  margin: 0 0 var(--spacing-lg);
+  font-size: 14px;
+  color: var(--color-gray-500);
+  max-width: 300px;
+}
+
+/* Explain Form */
+.explainForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.contextToggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-gray-100);
+  border-radius: var(--radius-md);
+  width: fit-content;
+}
+
+.contextToggle button {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-600);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.contextToggle button:hover {
+  color: var(--color-gray-900);
+}
+
+.contextToggle button.active {
+  background: white;
+  color: var(--color-gray-900);
+  box-shadow: var(--shadow-sm);
+}
+
+.promptRow {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.promptInput {
+  flex: 1;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-gray-900);
+  background: white;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+
+.promptInput::placeholder {
+  color: var(--color-gray-400);
+}
+
+.promptInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.explainResponse {
+  padding: var(--spacing-md);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-gray-200);
+}
+
+.explainResponse pre {
+  margin: 0;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-gray-700);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}

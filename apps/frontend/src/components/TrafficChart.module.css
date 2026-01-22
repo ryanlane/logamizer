@@ -1,0 +1,40 @@
+.chartWrapper {
+  width: 100%;
+}
+
+.legend {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 13px;
+  color: var(--color-gray-600);
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+}
+
+.legendDot[data-color="requests"] {
+  background: #6366f1;
+}
+
+.legendDot[data-color="errors"] {
+  background: #ef4444;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--color-gray-500);
+  font-size: 14px;
+}

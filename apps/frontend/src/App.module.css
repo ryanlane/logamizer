@@ -1,0 +1,78 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: white;
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.main {
+  flex: 1;
+  padding: var(--spacing-xl);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg);
+  font-size: 13px;
+  color: var(--color-gray-400);
+}
+
+.dot {
+  font-size: 8px;
+}
+
+/* Legacy styles kept for compatibility */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 32px 48px;
+}
+
+.controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: var(--color-gray-500);
+}
+
+.panel {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-md);
+}
+
+.loading {
+  padding: var(--spacing-md);
+  color: var(--color-gray-500);
+}
+
+.error {
+  padding: var(--spacing-md);
+  color: var(--color-danger);
+}

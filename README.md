@@ -98,6 +98,7 @@ logamizer/
 ├── apps/
 │   ├── api/          # FastAPI backend
 │   └── worker/       # Celery worker
+│   └── frontend/     # React + Vite frontend
 ├── packages/
 │   └── shared/       # Shared types and constants
 ├── infra/
@@ -115,6 +116,17 @@ logamizer/
 ```bash
 # Start with hot reload
 docker-compose -f infra/docker-compose.yml -f infra/docker-compose.dev.yml up
+
+### Frontend (React + Vite)
+
+```bash
+# Install frontend dependencies
+cd apps/frontend
+npm install
+
+# Start the dev server
+npm run dev
+```
 ```
 
 ### Running Tests
@@ -130,6 +142,7 @@ pytest
 ## Tech Stack
 
 - **Backend**: Python 3.12, FastAPI, SQLAlchemy 2.x, Celery
+- **Frontend**: React 18, TypeScript, Vite, TanStack Query, Recharts, CSS Modules
 - **Database**: PostgreSQL 16
 - **Queue**: Redis 7
 - **Storage**: MinIO (S3-compatible)
@@ -142,7 +155,8 @@ pytest
 - [x] Phase 3: Security Signals (Rule-based detection)
 - [x] Phase 4: Anomaly Detection (Statistical baselines)
 - [ ] Phase 5: Ollama Integration (LLM explanations)
-- [ ] Phase 6: React Frontend
+- [x] Phase 5: Ollama Integration (LLM explanations)
+- [x] Phase 6: React Frontend
 
 ## License
 
