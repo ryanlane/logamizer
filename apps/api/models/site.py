@@ -34,6 +34,22 @@ class Site(Base):
         nullable=False,
         default=LogFormat.NGINX_COMBINED,
     )
+    anomaly_baseline_days: Mapped[int] = mapped_column(
+        nullable=False,
+        default=7,
+    )
+    anomaly_min_baseline_hours: Mapped[int] = mapped_column(
+        nullable=False,
+        default=24,
+    )
+    anomaly_z_threshold: Mapped[float] = mapped_column(
+        nullable=False,
+        default=3.0,
+    )
+    anomaly_new_path_min_count: Mapped[int] = mapped_column(
+        nullable=False,
+        default=20,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -1,6 +1,7 @@
 """API routers."""
 
 from apps.api.routers.auth import router as auth_router
+from apps.api.routers.explain import router as explain_router
 from apps.api.routers.findings import router as findings_router
 from apps.api.routers.jobs import router as jobs_router
 from apps.api.routers.sites import router as sites_router
@@ -12,4 +13,5 @@ __all__ = [
     "uploads_router",
     "jobs_router",
     "findings_router",
+    "explain_router",
 ]

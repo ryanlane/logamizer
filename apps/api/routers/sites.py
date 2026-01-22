@@ -43,6 +43,10 @@ async def create_site(
         name=data.name,
         domain=data.domain,
         log_format=data.log_format,
+        anomaly_baseline_days=data.anomaly_baseline_days,
+        anomaly_min_baseline_hours=data.anomaly_min_baseline_hours,
+        anomaly_z_threshold=data.anomaly_z_threshold,
+        anomaly_new_path_min_count=data.anomaly_new_path_min_count,
     )
     db.add(site)
     await db.flush()
@@ -97,6 +101,14 @@ async def update_site(
         site.domain = data.domain
     if data.log_format is not None:
         site.log_format = data.log_format
+    if data.anomaly_baseline_days is not None:
+        site.anomaly_baseline_days = data.anomaly_baseline_days
+    if data.anomaly_min_baseline_hours is not None:
+        site.anomaly_min_baseline_hours = data.anomaly_min_baseline_hours
+    if data.anomaly_z_threshold is not None:
+        site.anomaly_z_threshold = data.anomaly_z_threshold
+    if data.anomaly_new_path_min_count is not None:
+        site.anomaly_new_path_min_count = data.anomaly_new_path_min_count
 
     await db.flush()
     await db.refresh(site)

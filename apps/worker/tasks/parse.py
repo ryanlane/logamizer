@@ -93,6 +93,10 @@ class Site(Base):
     name = Column(String(255), nullable=False)
     domain = Column(String(255), nullable=True)
     log_format = Column(String(50), nullable=False)
+    anomaly_baseline_days = Column(Integer, nullable=False, default=7)
+    anomaly_min_baseline_hours = Column(Integer, nullable=False, default=24)
+    anomaly_z_threshold = Column(Float, nullable=False, default=3.0)
+    anomaly_new_path_min_count = Column(Integer, nullable=False, default=20)
 
 
 class Aggregate(Base):
@@ -317,6 +321,10 @@ def parse_log_file(self, job_id: str) -> dict:
             anomaly_findings = detect_anomalies(
                 site_snapshots,
                 target_snapshots,
+                baseline_days=site.anomaly_baseline_days,
+                min_baseline_hours=site.anomaly_min_baseline_hours,
+                z_threshold=site.anomaly_z_threshold,
+                new_path_min_count=site.anomaly_new_path_min_count,
             )
 
             for finding in anomaly_findings:

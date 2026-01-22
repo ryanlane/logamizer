@@ -82,6 +82,13 @@ docker-compose -f infra/docker-compose.yml exec api alembic -c infra/migrations/
 - `GET /api/jobs/{id}/status` - Get job status (for polling)
 - `GET /api/jobs` - List all jobs
 
+### Findings
+- `GET /api/sites/{id}/findings` - List findings for a site
+- `GET /api/sites/{id}/findings/{finding_id}` - Get a single finding
+
+### Explain
+- `POST /api/sites/{id}/explain` - Explain findings/anomalies with Ollama
+
 ## Development
 
 ### Project Structure
@@ -132,8 +139,8 @@ pytest
 
 - [x] Phase 1: Foundations (Auth, Sites, Uploads, Jobs)
 - [x] Phase 2: Log Parsing (Nginx/Apache combined formats)
-- [ ] Phase 3: Security Signals (Rule-based detection)
-- [ ] Phase 4: Anomaly Detection (Statistical baselines)
+- [x] Phase 3: Security Signals (Rule-based detection)
+- [x] Phase 4: Anomaly Detection (Statistical baselines)
 - [ ] Phase 5: Ollama Integration (LLM explanations)
 - [ ] Phase 6: React Frontend
 
