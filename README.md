@@ -131,7 +131,7 @@ pytest
 ## Roadmap
 
 - [x] Phase 1: Foundations (Auth, Sites, Uploads, Jobs)
-- [ ] Phase 2: Log Parsing (Nginx/Apache combined formats)
+- [x] Phase 2: Log Parsing (Nginx/Apache combined formats)
 - [ ] Phase 3: Security Signals (Rule-based detection)
 - [ ] Phase 4: Anomaly Detection (Statistical baselines)
 - [ ] Phase 5: Ollama Integration (LLM explanations)
