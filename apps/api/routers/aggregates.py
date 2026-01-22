@@ -72,14 +72,26 @@ async def get_dashboard(
     site_id: str,
     current_user: CurrentUser,
     db: DbSession,
+    start_date: str | None = Query(default=None, description="ISO format datetime"),
+    end_date: str | None = Query(default=None, description="ISO format datetime"),
     days: int = Query(default=7, le=90),
 ) -> DashboardResponse:
     """Get dashboard data for a site."""
     site = await get_user_site(site_id, current_user.id, db)
 
     # Calculate time range
-    end_time = datetime.now(timezone.utc)
-    start_time = end_time - timedelta(days=days)
+    if start_date and end_date:
+        start_time = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+    elif start_date:
+        start_time = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        end_time = datetime.now(timezone.utc)
+    elif end_date:
+        end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+        start_time = end_time - timedelta(days=days)
+    else:
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(days=days)
 
     # Get aggregates for the time range
     agg_query = (

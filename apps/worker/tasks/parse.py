@@ -1,5 +1,6 @@
 """Log file parsing task."""
 
+import gzip
 import json
 import os
 from datetime import UTC, datetime, timedelta
@@ -219,6 +220,15 @@ def parse_log_file(self, job_id: str) -> dict:
 
         job.progress = 20.0
         db.commit()
+
+        # Decompress if gzipped (check by filename or magic bytes)
+        if log_file.filename.endswith(".gz") or file_content[:2] == b"\x1f\x8b":
+            try:
+                file_content = gzip.decompress(file_content)
+                job.progress = 25.0
+                db.commit()
+            except Exception as e:
+                raise ValueError(f"Failed to decompress gzipped log file: {e}")
 
         # Get parser for the log format
         parser = get_parser(site.log_format)

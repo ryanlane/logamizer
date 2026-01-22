@@ -1,0 +1,27 @@
+# Docker Compose override for systems with GPU
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up
+#
+# Requirements:
+# - NVIDIA GPU
+# - nvidia-docker2 installed
+# - Docker configured to use nvidia runtime
+#
+# Setup instructions:
+# 1. Install nvidia-docker2: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+# 2. Configure Docker to use nvidia runtime as default or specify it per-container
+
+services:
+  ollama:
+    # Enable GPU support for Ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      # Optional: Specify which GPU to use (default: all)
+      # - CUDA_VISIBLE_DEVICES=0
+      # Optional: Ollama-specific GPU settings
+      - OLLAMA_NUM_GPU=1

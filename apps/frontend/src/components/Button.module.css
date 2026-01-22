@@ -16,6 +16,10 @@
   cursor: not-allowed;
 }
 
+.fullWidth {
+  width: 100%;
+}
+
 /* Sizes */
 .sm {
   height: 32px;

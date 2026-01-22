@@ -1,0 +1,32 @@
+// Add these imports at the top:
+import { FindingDetailModal } from "../components/FindingDetailModal";
+import { useExplainFinding, useVerifyFinding } from "../api/hooks";
+import type { Finding } from "../types";
+
+// Add this state after the existing state declarations:
+const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
+
+const explainFinding = useExplainFinding();
+const verifyFinding = useVerifyFinding();
+
+async function handleExplainFinding(findingId: string): Promise<string> {
+  const result = await explainFinding.mutateAsync({ findingId });
+  return result.explanation;
+}
+
+async function handleVerifyFinding(findingId: string): Promise<{ verified: boolean; details: string }> {
+  return await verifyFinding.mutateAsync({ findingId });
+}
+
+// In the findings card, update FindingsList:
+<FindingsList findings={findings} onFindingClick={setSelectedFinding} />
+
+// Add before the closing </div>:
+{selectedFinding && (
+  <FindingDetailModal
+    finding={selectedFinding}
+    onClose={() => setSelectedFinding(null)}
+    onExplain={handleExplainFinding}
+    onVerify={handleVerifyFinding}
+  />
+)}

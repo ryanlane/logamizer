@@ -47,6 +47,19 @@ export type Finding = {
   created_at: string;
 };
 
+export type VerificationProbe = {
+  url: string;
+  status_code?: number | null;
+  headers?: Record<string, string>;
+  error?: string;
+};
+
+export type VerifyFindingResponse = {
+  verified: boolean;
+  details: string;
+  probes?: VerificationProbe[];
+};
+
 export type Job = {
   id: string;
   log_file_id: string;

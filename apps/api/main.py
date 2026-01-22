@@ -9,8 +9,10 @@ from apps.api.config import get_settings
 from apps.api.routers import (
     auth_router,
     explain_router,
+    finding_actions_router,
     findings_router,
     jobs_router,
+    ollama_router,
     sites_router,
     uploads_router,
 )
@@ -50,7 +52,9 @@ app.include_router(uploads_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api")
 app.include_router(aggregates_router, prefix="/api")
 app.include_router(findings_router, prefix="/api")
+app.include_router(finding_actions_router, prefix="/api")
 app.include_router(explain_router, prefix="/api")
+app.include_router(ollama_router, prefix="/api")
 
 
 @app.get("/health")

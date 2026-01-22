@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { apiFetch, setStoredToken } from "../../api/client";
+import { apiFetch, setStoredToken, setStoredRefreshToken } from "../../api/client";
 import { Button } from "../Button";
 import { Card, CardHeader } from "../Card";
 import { Input } from "../Input";
@@ -40,6 +40,9 @@ export function WelcomeStep({ onComplete }: Props) {
         body: JSON.stringify({ email, password }),
       });
       setStoredToken(data.access_token);
+      if (data.refresh_token) {
+        setStoredRefreshToken(data.refresh_token);
+      }
       onComplete();
     } catch (err) {
       setError((err as Error).message);

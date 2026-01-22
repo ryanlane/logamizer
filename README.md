@@ -57,6 +57,27 @@ docker-compose -f infra/docker-compose.yml exec api alembic -c infra/migrations/
 - **API Docs**: http://localhost:8000/docs
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin)
 
+### GPU Support for Ollama (Optional)
+
+By default, Ollama runs on CPU. For better performance, you can enable GPU support:
+
+**With GPU (NVIDIA):**
+```bash
+# Prerequisites: NVIDIA GPU, nvidia-docker2 installed
+docker-compose -f infra/docker-compose.yml -f infra/docker-compose.gpu.yml up -d
+```
+
+**Without GPU (CPU only):**
+```bash
+# Explicitly use CPU mode with memory limits
+docker-compose -f infra/docker-compose.yml -f infra/docker-compose.nogpu.yml up -d
+```
+
+**GPU Setup Requirements:**
+1. Install [nvidia-docker2](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+2. Verify GPU is available: `docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi`
+3. Use the GPU compose override as shown above
+
 ## API Endpoints
 
 ### Authentication

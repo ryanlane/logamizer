@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, getStoredToken } from "./client";
-import type { DashboardResponse, Finding, Site } from "../types";
+import type { DashboardResponse, Finding, Site, VerifyFindingResponse } from "../types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Job } from "../types";
 
@@ -13,20 +13,36 @@ export function useSites() {
   });
 }
 
-export function useDashboard(siteId?: string) {
+export function useDashboard(siteId?: string, startDate?: string | null, endDate?: string | null) {
   const token = getStoredToken();
   return useQuery({
-    queryKey: ["dashboard", siteId],
-    queryFn: () => apiFetch<DashboardResponse>(`/api/sites/${siteId}/dashboard`),
+    queryKey: ["dashboard", siteId, startDate, endDate],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+      const queryString = params.toString();
+      return apiFetch<DashboardResponse>(
+        `/api/sites/${siteId}/dashboard${queryString ? `?${queryString}` : ""}`
+      );
+    },
     enabled: Boolean(siteId && token),
   });
 }
 
-export function useFindings(siteId?: string) {
+export function useFindings(siteId?: string, startDate?: string | null, endDate?: string | null) {
   const token = getStoredToken();
   return useQuery({
-    queryKey: ["findings", siteId],
-    queryFn: () => apiFetch<{ findings: Finding[] }>(`/api/sites/${siteId}/findings`),
+    queryKey: ["findings", siteId, startDate, endDate],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+      const queryString = params.toString();
+      return apiFetch<{ findings: Finding[] }>(
+        `/api/sites/${siteId}/findings${queryString ? `?${queryString}` : ""}`
+      );
+    },
     enabled: Boolean(siteId && token),
   });
 }
@@ -170,3 +186,22 @@ export function useExplain() {
   });
 }
 
+
+
+export function useExplainFinding() {
+  return useMutation({
+    mutationFn: ({ findingId }: { findingId: string }) =>
+      apiFetch<{ explanation: string }>(`/api/findings/${findingId}/explain`, {
+        method: "POST",
+      }),
+  });
+}
+
+export function useVerifyFinding() {
+  return useMutation({
+    mutationFn: ({ findingId }: { findingId: string }) =>
+      apiFetch<VerifyFindingResponse>(`/api/findings/${findingId}/verify`, {
+        method: "POST",
+      }),
+  });
+}

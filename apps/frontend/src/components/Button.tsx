@@ -5,6 +5,7 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
+  fullWidth?: boolean;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
 };
@@ -14,15 +15,26 @@ export function Button({
   variant = "primary",
   size = "md",
   isLoading = false,
+  fullWidth = false,
   leftIcon,
   rightIcon,
   disabled,
   className = "",
   ...props
 }: Props) {
+  const classNames = [
+    styles.button,
+    styles[variant],
+    styles[size],
+    fullWidth && styles.fullWidth,
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <button
-      className={`${styles.button} ${styles[variant]} ${styles[size]} ${className}`}
+      className={classNames}
       disabled={disabled || isLoading}
       {...props}
     >

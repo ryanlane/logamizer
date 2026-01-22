@@ -1,5 +1,7 @@
 """Finding routes."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
@@ -33,6 +35,8 @@ async def list_findings(
     log_file_id: str | None = None,
     finding_type: str | None = None,
     severity: str | None = None,
+    start_date: str | None = Query(default=None, description="ISO format datetime"),
+    end_date: str | None = Query(default=None, description="ISO format datetime"),
     limit: int = Query(default=100, le=1000),
 ) -> FindingListResponse:
     """List findings for a site."""
@@ -45,6 +49,12 @@ async def list_findings(
         query = query.where(Finding.finding_type == finding_type)
     if severity:
         query = query.where(Finding.severity == severity)
+    if start_date:
+        start_time = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        query = query.where(Finding.created_at >= start_time)
+    if end_date:
+        end_time = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+        query = query.where(Finding.created_at <= end_time)
 
     query = query.order_by(Finding.created_at.desc()).limit(limit)
 

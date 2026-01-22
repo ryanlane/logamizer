@@ -86,7 +86,7 @@ export function UploadStep({ site, onComplete, onBack }: Props) {
 
         {uploadState.status === "idle" && (
           <>
-            <FileUpload onFileSelect={handleFileSelect} />
+            <FileUpload file={null} onFileSelect={handleFileSelect} accept=".log,.txt,.gz" />
             <div className={styles.actions}>
               <Button variant="secondary" onClick={onBack}>
                 Back
@@ -214,7 +214,7 @@ export function UploadStep({ site, onComplete, onBack }: Props) {
             <li>Upload complete access log files (not error logs)</li>
             <li>Files up to 100MB are supported</li>
             <li>Analysis typically takes a few seconds per MB</li>
-            <li>Supported formats: .log, .txt, or plain text files</li>
+            <li>Supported formats: .log, .txt, .gz (compressed)</li>
           </ul>
         </div>
       )}

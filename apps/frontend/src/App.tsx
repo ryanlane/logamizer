@@ -1,7 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSites } from "./api/hooks";
-import { getStoredToken, setStoredToken } from "./api/client";
+import { getStoredToken, clearAuth } from "./api/client";
 import type { Site } from "./types";
+import { DashboardLayout } from "./components/DashboardLayout";
+import { SiteListPage } from "./pages/SiteListPage";
+import { SiteDashboardPage } from "./pages/SiteDashboardPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { Stepper, type Step } from "./components/Stepper";
 import { WelcomeStep } from "./components/steps/WelcomeStep";
 import { SiteSetupStep } from "./components/steps/SiteSetupStep";
@@ -17,18 +21,29 @@ const WIZARD_STEPS: Step[] = [
 ];
 
 type WizardStep = "welcome" | "site" | "upload" | "results";
+type AppView = "login" | "dashboard" | "wizard" | "site-detail" | "settings";
 
 export default function App() {
   const [token, setToken] = useState(() => getStoredToken());
-  const [currentStep, setCurrentStep] = useState<WizardStep>(() =>
-    getStoredToken() ? "site" : "welcome"
-  );
+  const [view, setView] = useState<AppView>(() => (getStoredToken() ? "dashboard" : "login"));
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+
+  // Wizard state (only used when in wizard mode)
+  const [currentStep, setCurrentStep] = useState<WizardStep>("welcome");
 
   const sitesQuery = useSites();
   const sites = sitesQuery.data?.sites ?? [];
 
-  // Compute the step index for the stepper
+  // Check if this is the user's first time (no sites yet)
+  const isFirstRun = token && sites.length === 0 && !sitesQuery.isLoading;
+
+  // Auto-redirect to wizard on first run
+  if (isFirstRun && view === "dashboard") {
+    setView("wizard");
+    setCurrentStep("site");
+  }
+
+  // Compute the step index for the stepper (wizard mode)
   const stepIndex = useMemo(() => {
     const stepMap: Record<WizardStep, number> = {
       welcome: 0,
@@ -39,11 +54,10 @@ export default function App() {
     return stepMap[currentStep];
   }, [currentStep]);
 
-  // Handle step clicks in stepper
+  // Handle step clicks in stepper (wizard mode)
   const handleStepClick = useCallback(
     (index: number) => {
       const steps: WizardStep[] = ["welcome", "site", "upload", "results"];
-      // Only allow going back or staying, not forward (forward requires completing steps)
       if (index < stepIndex) {
         setCurrentStep(steps[index]);
       }
@@ -54,89 +68,153 @@ export default function App() {
   // Auth complete handler
   const handleAuthComplete = useCallback(() => {
     setToken(getStoredToken());
-    setCurrentStep("site");
-  }, []);
+    // Check if user has sites
+    if (sites.length === 0) {
+      setView("wizard");
+      setCurrentStep("site");
+    } else {
+      setView("dashboard");
+    }
+  }, [sites.length]);
 
-  // Site selection complete handler
+  // Wizard: Site selection complete handler
   const handleSiteComplete = useCallback((site: Site) => {
     setSelectedSite(site);
     setCurrentStep("upload");
   }, []);
 
-  // Upload complete handler
+  // Wizard: Upload complete handler
   const handleUploadComplete = useCallback(() => {
     setCurrentStep("results");
   }, []);
 
-  // Navigation handlers
-  const handleBackToWelcome = useCallback(() => {
-    setStoredToken(null);
-    setToken(null);
-    setCurrentStep("welcome");
-  }, []);
-
-  const handleBackToSite = useCallback(() => {
-    setCurrentStep("site");
-  }, []);
-
-  const handleUploadMore = useCallback(() => {
-    setCurrentStep("upload");
-  }, []);
-
-  const handleChangeSite = useCallback(() => {
+  // Wizard: Exit to dashboard
+  const handleExitWizard = useCallback(() => {
+    setView("dashboard");
     setSelectedSite(null);
     setCurrentStep("site");
   }, []);
 
-  // Show stepper only when authenticated
-  const showStepper = currentStep !== "welcome";
+  // Dashboard: Create new site
+  const handleCreateNewSite = useCallback(() => {
+    setView("wizard");
+    setCurrentStep("site");
+    setSelectedSite(null);
+  }, []);
+
+  // Dashboard: View site details
+  const handleViewSite = useCallback((site: Site) => {
+    setSelectedSite(site);
+    setView("site-detail");
+  }, []);
+
+  // Site detail: Back to dashboard
+  const handleBackToDashboard = useCallback(() => {
+    setView("dashboard");
+    setSelectedSite(null);
+  }, []);
+
+  // Navigation handler for dashboard layout
+  const handleNavigate = useCallback((path: string) => {
+    if (path === "/") {
+      setView("dashboard");
+      setSelectedSite(null);
+    } else if (path === "/settings") {
+      setView("settings");
+      setSelectedSite(null);
+    }
+  }, []);
+
+  // Render login view
+  if (!token || view === "login") {
+    return (
+      <div className={styles.app}>
+        <main className={styles.main}>
+          <WelcomeStep onComplete={handleAuthComplete} />
+        </main>
+        <footer className={styles.footer}>
+          <span>Logamizer</span>
+          <span className={styles.dot}>·</span>
+          <span>Security signals & anomaly insights</span>
+        </footer>
+      </div>
+    );
+  }
+
+  // Render wizard view (first run or creating new site)
+  if (view === "wizard") {
+    const showStepper = currentStep !== "welcome";
+
+    return (
+      <div className={styles.app}>
+        {showStepper && (
+          <header className={styles.header}>
+            <Stepper
+              steps={WIZARD_STEPS}
+              currentStep={stepIndex}
+              onStepClick={handleStepClick}
+            />
+          </header>
+        )}
+
+        <main className={styles.main}>
+          {currentStep === "site" && (
+            <SiteSetupStep
+              onComplete={handleSiteComplete}
+              onBack={() => {
+                if (sites.length > 0) {
+                  setView("dashboard");
+                } else {
+                  clearAuth();
+                  setToken(null);
+                  setView("login");
+                }
+              }}
+            />
+          )}
+
+          {currentStep === "upload" && selectedSite && (
+            <UploadStep
+              site={selectedSite}
+              onComplete={handleUploadComplete}
+              onBack={() => setCurrentStep("site")}
+            />
+          )}
+
+          {currentStep === "results" && selectedSite && (
+            <ResultsStep
+              site={selectedSite}
+              onUploadMore={() => setCurrentStep("upload")}
+              onChangeSite={handleExitWizard}
+            />
+          )}
+        </main>
+
+        <footer className={styles.footer}>
+          <span>Logamizer</span>
+          <span className={styles.dot}>·</span>
+          <span>Security signals & anomaly insights</span>
+        </footer>
+      </div>
+    );
+  }
+
+  // Render dashboard or site detail view
+  const currentPath = view === "dashboard" ? "/" : view === "settings" ? "/settings" : "";
 
   return (
-    <div className={styles.app}>
-      {showStepper && (
-        <header className={styles.header}>
-          <Stepper
-            steps={WIZARD_STEPS}
-            currentStep={stepIndex}
-            onStepClick={handleStepClick}
-          />
-        </header>
+    <DashboardLayout onNavigate={handleNavigate} currentPath={currentPath}>
+      {view === "dashboard" && (
+        <SiteListPage onSelectSite={handleViewSite} onCreateNew={handleCreateNewSite} />
       )}
 
-      <main className={styles.main}>
-        {currentStep === "welcome" && (
-          <WelcomeStep onComplete={handleAuthComplete} />
-        )}
+      {view === "site-detail" && selectedSite && (
+        <SiteDashboardPage site={selectedSite} onBack={handleBackToDashboard} />
+      )}
 
-        {currentStep === "site" && (
-          <SiteSetupStep
-            onComplete={handleSiteComplete}
-            onBack={handleBackToWelcome}
-          />
-        )}
-
-        {currentStep === "upload" && selectedSite && (
-          <UploadStep
-            site={selectedSite}
-            onComplete={handleUploadComplete}
-            onBack={handleBackToSite}
-          />
-        )}
-
-        {currentStep === "results" && selectedSite && (
-          <ResultsStep
-            site={selectedSite}
-            onUploadMore={handleUploadMore}
-            onChangeSite={handleChangeSite}
-          />
-        )}
-      </main>
-
-      <footer className={styles.footer}>
-        <span>Logamizer</span>
-        <span className={styles.dot}>·</span>
-        <span>Security signals & anomaly insights</span>
-      </footer>
-    </div>
+      {view === "settings" && (
+        <SettingsPage onBack={() => setView("dashboard")} />
+      )}
+    </DashboardLayout>
   );
 }
