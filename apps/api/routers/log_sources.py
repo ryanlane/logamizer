@@ -336,11 +336,14 @@ async def test_log_source_connection(
             detail="Log source not found",
         )
 
-    # TODO: Implement actual connection testing
-    # For now, return a placeholder response
+    # Enqueue connection test task
+    from apps.worker.tasks.fetch import test_log_source_connection as test_task
+
+    task = test_task.delay(log_source_id)
+
     return {
-        "success": True,
-        "message": "Connection test not yet implemented. This will test the connection without fetching logs.",
+        "message": "Connection test enqueued",
+        "task_id": task.id,
     }
 
 
@@ -376,8 +379,13 @@ async def trigger_immediate_fetch(
             detail="Log source not found",
         )
 
-    # TODO: Enqueue immediate fetch task
+    # Enqueue fetch task
+    from apps.worker.tasks.fetch import fetch_logs_from_source
+
+    task = fetch_logs_from_source.delay(log_source_id)
+
     return {
         "message": "Fetch task enqueued. Check the log source status for results.",
         "log_source_id": log_source_id,
+        "task_id": task.id,
     }

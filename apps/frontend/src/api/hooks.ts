@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, getStoredToken } from "./client";
-import type { DashboardResponse, Finding, Site, VerifyFindingResponse } from "../types";
+import type { DashboardResponse, Finding, Site, VerifyFindingResponse, LogSource, LogSourceCreate, LogSourceUpdate } from "../types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Job } from "../types";
 
@@ -209,5 +209,86 @@ export function useVerifyFinding() {
       apiFetch<VerifyFindingResponse>(`/api/findings/${findingId}/verify`, {
         method: "POST",
       }),
+  });
+}
+
+// Log Sources
+export function useLogSources(siteId: string) {
+  return useQuery({
+    queryKey: ["log-sources", siteId],
+    queryFn: () =>
+      apiFetch<{ log_sources: LogSource[]; total: number }>(
+        `/api/sites/${siteId}/log-sources`
+      ),
+    enabled: !!siteId,
+  });
+}
+
+export function useCreateLogSource(siteId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: LogSourceCreate) =>
+      apiFetch<LogSource>(`/api/sites/${siteId}/log-sources`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["log-sources", siteId] });
+    },
+  });
+}
+
+export function useUpdateLogSource(siteId: string, logSourceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: LogSourceUpdate) =>
+      apiFetch<LogSource>(`/api/sites/${siteId}/log-sources/${logSourceId}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["log-sources", siteId] });
+    },
+  });
+}
+
+export function useDeleteLogSource(siteId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (logSourceId: string) =>
+      apiFetch(`/api/sites/${siteId}/log-sources/${logSourceId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["log-sources", siteId] });
+    },
+  });
+}
+
+export function useTestLogSource(siteId: string, logSourceId: string) {
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ message: string; task_id: string }>(
+        `/api/sites/${siteId}/log-sources/${logSourceId}/test`,
+        {
+          method: "POST",
+        }
+      ),
+  });
+}
+
+export function useFetchNow(siteId: string, logSourceId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ message: string; log_source_id: string; task_id: string }>(
+        `/api/sites/${siteId}/log-sources/${logSourceId}/fetch-now`,
+        {
+          method: "POST",
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["log-sources", siteId] });
+    },
   });
 }

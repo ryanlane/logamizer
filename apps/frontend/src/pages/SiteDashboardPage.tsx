@@ -22,11 +22,12 @@ import inputStyles from "../components/Input.module.css";
 type Props = {
   site: Site;
   onBack: () => void;
+  onViewLogSources?: () => void;
 };
 
 type UploadState = "idle" | "uploading" | "processing" | "complete" | "error";
 
-export function SiteDashboardPage({ site, onBack }: Props) {
+export function SiteDashboardPage({ site, onBack, onViewLogSources }: Props) {
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
 
@@ -307,6 +308,11 @@ export function SiteDashboardPage({ site, onBack }: Props) {
             endDate={endDate}
             onDateRangeChange={handleDateRangeChange}
           />
+          {onViewLogSources && (
+            <Button variant="secondary" onClick={onViewLogSources}>
+              Log Sources
+            </Button>
+          )}
           <Button onClick={() => setIsUploadMode(!isUploadMode)}>
             {isUploadMode ? "Cancel upload" : "Upload more logs"}
           </Button>

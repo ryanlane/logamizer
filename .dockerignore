@@ -1,0 +1,42 @@
+# Node modules
+apps/frontend/node_modules
+node_modules
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# Development
+.git
+.gitignore
+.env
+.venv
+venv
+*.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+
+# Documentation
+*.md
+docs
+
+# Migrations (keep only the versions directory)
+infra/migrations/env.py
+infra/migrations/alembic.ini

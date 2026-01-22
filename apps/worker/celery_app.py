@@ -12,7 +12,11 @@ celery_app = Celery(
     "logamizer",
     broker=CELERY_BROKER_URL,
     backend=CELERY_RESULT_BACKEND,
-    include=["apps.worker.tasks.parse"],
+    include=[
+        "apps.worker.tasks.parse",
+        "apps.worker.tasks.fetch",
+        "apps.worker.tasks.scheduler",
+    ],
 )
 
 # Celery configuration
@@ -28,3 +32,13 @@ celery_app.conf.update(
     task_acks_late=True,  # Ack after task completes
     task_reject_on_worker_lost=True,
 )
+
+# Celery Beat schedule for periodic tasks
+celery_app.conf.beat_schedule = {
+    "schedule-log-fetches": {
+        "task": "schedule_log_fetches",
+        "schedule": 60.0,  # Run every 60 seconds
+    },
+}
+
+app = celery_app

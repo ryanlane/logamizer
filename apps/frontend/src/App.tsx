@@ -6,6 +6,7 @@ import { DashboardLayout } from "./components/DashboardLayout";
 import { SiteListPage } from "./pages/SiteListPage";
 import { SiteDashboardPage } from "./pages/SiteDashboardPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { LogSourcesPage } from "./pages/LogSourcesPage";
 import { Stepper, type Step } from "./components/Stepper";
 import { WelcomeStep } from "./components/steps/WelcomeStep";
 import { SiteSetupStep } from "./components/steps/SiteSetupStep";
@@ -21,7 +22,7 @@ const WIZARD_STEPS: Step[] = [
 ];
 
 type WizardStep = "welcome" | "site" | "upload" | "results";
-type AppView = "login" | "dashboard" | "wizard" | "site-detail" | "settings";
+type AppView = "login" | "dashboard" | "wizard" | "site-detail" | "settings" | "log-sources";
 
 type RouteState = {
   view: AppView;
@@ -39,7 +40,14 @@ function parseRoute(pathname: string, isAuthed: boolean): RouteState {
   }
 
   if (pathname.startsWith("/sites/")) {
-    const siteId = pathname.split("/").filter(Boolean)[1] ?? null;
+    const parts = pathname.split("/").filter(Boolean);
+    const siteId = parts[1] ?? null;
+
+    // Check if this is a log-sources sub-route
+    if (parts[2] === "log-sources") {
+      return { view: "log-sources", step: "welcome", siteId };
+    }
+
     return { view: "site-detail", step: "welcome", siteId };
   }
 
@@ -61,6 +69,7 @@ function parseRoute(pathname: string, isAuthed: boolean): RouteState {
 function buildPath(view: AppView, step: WizardStep, siteId: string | null): string {
   if (view === "login") return "/login";
   if (view === "settings") return "/settings";
+  if (view === "log-sources" && siteId) return `/sites/${siteId}/log-sources`;
   if (view === "site-detail" && siteId) return `/sites/${siteId}`;
   if (view === "wizard") return `/wizard/${step}`;
   return "/";
@@ -215,6 +224,13 @@ export default function App() {
     setSelectedSiteId(null);
   }, []);
 
+  // Navigate to log sources page
+  const handleViewLogSources = useCallback((site: Site) => {
+    setSelectedSite(site);
+    setSelectedSiteId(site.id);
+    setView("log-sources");
+  }, []);
+
   // Navigation handler for dashboard layout
   const handleNavigate = useCallback((path: string) => {
     if (path === "/") {
@@ -312,7 +328,20 @@ export default function App() {
       )}
 
       {view === "site-detail" && selectedSite && (
-        <SiteDashboardPage site={selectedSite} onBack={handleBackToDashboard} />
+        <SiteDashboardPage
+          site={selectedSite}
+          onBack={handleBackToDashboard}
+          onViewLogSources={() => handleViewLogSources(selectedSite)}
+        />
+      )}
+
+      {view === "log-sources" && selectedSite && (
+        <LogSourcesPage
+          site={selectedSite}
+          onBack={() => {
+            setView("site-detail");
+          }}
+        />
       )}
 
       {view === "settings" && (

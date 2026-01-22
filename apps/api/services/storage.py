@@ -114,3 +114,18 @@ class StorageService:
             return response.get("ContentLength")
         except self.client.exceptions.ClientError:
             return None
+
+    def upload_file(self, file_obj, key: str, content_type: str = "text/plain") -> None:
+        """Upload a file object to S3."""
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=file_obj,
+            ContentType=content_type,
+        )
+
+
+@lru_cache
+def get_storage_service() -> StorageService:
+    """Get cached storage service instance."""
+    return StorageService()

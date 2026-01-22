@@ -89,7 +89,7 @@ services:
       context: ..
       dockerfile: infra/Dockerfile.worker
     environment:
-      - DATABASE_URL=postgresql://logamizer:logamizer@postgres:5432/logamizer
+      - DATABASE_URL=postgresql+asyncpg://logamizer:logamizer@postgres:5432/logamizer
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - S3_ENDPOINT_URL=http://minio:9000
@@ -102,6 +102,29 @@ services:
       redis:
         condition: service_healthy
       minio:
+        condition: service_healthy
+    volumes:
+      - ../apps:/app/apps:ro
+      - ../packages:/app/packages:ro
+
+  # Celery beat scheduler (periodic tasks)
+  beat:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.worker
+    command: celery -A apps.worker.celery_app beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://logamizer:logamizer@postgres:5432/logamizer
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_ACCESS_KEY_ID=minioadmin
+      - S3_SECRET_ACCESS_KEY=minioadmin
+      - S3_BUCKET_NAME=logamizer-logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ../apps:/app/apps:ro

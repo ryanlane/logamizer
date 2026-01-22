@@ -75,3 +75,36 @@ export type Job = {
   started_at: string | null;
   completed_at: string | null;
 };
+
+export type LogSource = {
+  id: string;
+  site_id: string;
+  name: string;
+  source_type: "ssh" | "sftp" | "s3" | "gcs" | "http";
+  status: "active" | "paused" | "error";
+  connection_config: Record<string, any>;
+  schedule_type: "interval" | "cron";
+  schedule_config: Record<string, any>;
+  last_fetch_at: string | null;
+  last_fetch_status: string | null;
+  last_fetch_error: string | null;
+  last_fetched_bytes: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LogSourceCreate = {
+  name: string;
+  source_type: string;
+  connection_config: Record<string, any>;
+  schedule_type: string;
+  schedule_config: Record<string, any>;
+};
+
+export type LogSourceUpdate = {
+  name?: string;
+  status?: string;
+  connection_config?: Record<string, any>;
+  schedule_type?: string;
+  schedule_config?: Record<string, any>;
+};
