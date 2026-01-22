@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.config import get_settings
 from apps.api.routers import auth_router, jobs_router, sites_router, uploads_router
+from apps.api.routers.aggregates import router as aggregates_router
 
 settings = get_settings()
 
@@ -40,6 +41,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(sites_router, prefix="/api")
 app.include_router(uploads_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api")
+app.include_router(aggregates_router, prefix="/api")
 
 
 @app.get("/health")

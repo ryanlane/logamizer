@@ -5,21 +5,26 @@ import os
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import boto3
+from botocore.config import Config
 from sqlalchemy import (
     BigInteger,
     Column,
     DateTime,
     Float,
     ForeignKey,
+    Integer,
     String,
     Text,
     create_engine,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from apps.worker.celery_app import celery_app
+from apps.worker.parsers import ApacheCombinedParser, NginxCombinedParser, Parser
+from apps.worker.utils.aggregator import Aggregator
 from packages.shared.enums import JobStatus, LogFileStatus
 
 # Sync database URL (Celery doesn't use async)
@@ -27,6 +32,13 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://logamizer:logamizer@localhost:5432/logamizer",
 ).replace("+asyncpg", "")
+
+# S3/MinIO configuration
+S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "http://localhost:9000")
+S3_ACCESS_KEY_ID = os.getenv("S3_ACCESS_KEY_ID", "minioadmin")
+S3_SECRET_ACCESS_KEY = os.getenv("S3_SECRET_ACCESS_KEY", "minioadmin")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "logamizer-logs")
+S3_REGION = os.getenv("S3_REGION", "us-east-1")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
@@ -69,15 +81,79 @@ class LogFile(Base):
     uploaded_at = Column(DateTime(timezone=True), nullable=True)
 
 
+class Site(Base):
+    """Site model for worker."""
+
+    __tablename__ = "sites"
+
+    id = Column(UUID(as_uuid=False), primary_key=True)
+    user_id = Column(UUID(as_uuid=False), nullable=False)
+    name = Column(String(255), nullable=False)
+    domain = Column(String(255), nullable=True)
+    log_format = Column(String(50), nullable=False)
+
+
+class Aggregate(Base):
+    """Aggregate model for worker."""
+
+    __tablename__ = "aggregates"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    site_id = Column(UUID(as_uuid=False), nullable=False)
+    log_file_id = Column(UUID(as_uuid=False), nullable=True)
+    hour_bucket = Column(DateTime(timezone=True), nullable=False)
+    requests_count = Column(BigInteger, nullable=False, default=0)
+    status_2xx = Column(Integer, nullable=False, default=0)
+    status_3xx = Column(Integer, nullable=False, default=0)
+    status_4xx = Column(Integer, nullable=False, default=0)
+    status_5xx = Column(Integer, nullable=False, default=0)
+    unique_ips = Column(Integer, nullable=False, default=0)
+    unique_paths = Column(Integer, nullable=False, default=0)
+    total_bytes = Column(BigInteger, nullable=False, default=0)
+    top_paths = Column(JSON, nullable=True)
+    top_ips = Column(JSON, nullable=True)
+    top_user_agents = Column(JSON, nullable=True)
+    top_status_codes = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+def get_s3_client():
+    """Get S3 client for MinIO."""
+    return boto3.client(
+        "s3",
+        endpoint_url=S3_ENDPOINT_URL,
+        aws_access_key_id=S3_ACCESS_KEY_ID,
+        aws_secret_access_key=S3_SECRET_ACCESS_KEY,
+        region_name=S3_REGION,
+        config=Config(signature_version="s3v4"),
+    )
+
+
+def get_parser(log_format: str) -> Parser:
+    """Get the appropriate parser for the log format."""
+    if log_format == "nginx_combined":
+        return NginxCombinedParser()
+    elif log_format == "apache_combined":
+        return ApacheCombinedParser()
+    else:
+        raise ValueError(f"Unsupported log format: {log_format}")
+
+
 @celery_app.task(bind=True, name="apps.worker.tasks.parse.parse_log_file")
 def parse_log_file(self, job_id: str) -> dict:
     """
     Parse a log file and generate aggregates.
 
-    This is a placeholder implementation for Phase 1.
-    Full parsing logic will be implemented in Phase 2.
+    This task:
+    1. Downloads the log file from S3/MinIO
+    2. Parses it using the appropriate parser
+    3. Aggregates the events into hourly buckets
+    4. Stores the aggregates in the database
+    5. Updates job status with results
     """
     db: Session = SessionLocal()
+    job = None
+    log_file = None
 
     try:
         # Get job
@@ -88,6 +164,7 @@ def parse_log_file(self, job_id: str) -> dict:
         # Update job status
         job.status = JobStatus.PROCESSING
         job.started_at = datetime.now(UTC)
+        job.progress = 5.0
         db.commit()
 
         # Get log file
@@ -103,14 +180,73 @@ def parse_log_file(self, job_id: str) -> dict:
         log_file.status = LogFileStatus.PROCESSING
         db.commit()
 
-        # TODO: Phase 2 - Implement actual parsing
-        # For now, just mark as completed with placeholder results
+        # Get site for log format
+        site = db.query(Site).filter(Site.id == log_file.site_id).first()
+        if site is None:
+            raise ValueError("Site not found")
+
+        job.progress = 10.0
+        db.commit()
+
+        # Download file from S3
+        s3_client = get_s3_client()
+        response = s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=log_file.storage_key)
+        file_content = response["Body"].read()
+
+        job.progress = 20.0
+        db.commit()
+
+        # Get parser for the log format
+        parser = get_parser(site.log_format)
+
+        # Parse the log file
+        parse_result = parser.parse_bytes(file_content)
+
+        job.progress = 60.0
+        db.commit()
+
+        # Aggregate the events
+        aggregator = Aggregator()
+        aggregation = aggregator.aggregate_events(parse_result.events)
+
+        job.progress = 80.0
+        db.commit()
+
+        # Store aggregates in database
+        for bucket in aggregation.hourly_buckets:
+            bucket_data = bucket.to_dict()
+            aggregate = Aggregate(
+                site_id=site.id,
+                log_file_id=log_file.id,
+                hour_bucket=bucket.hour,
+                requests_count=bucket.requests_count,
+                status_2xx=bucket.status_2xx,
+                status_3xx=bucket.status_3xx,
+                status_4xx=bucket.status_4xx,
+                status_5xx=bucket.status_5xx,
+                unique_ips=len(bucket.ips),
+                unique_paths=len(bucket.paths),
+                total_bytes=bucket.total_bytes,
+                top_paths=bucket_data["top_paths"],
+                top_ips=bucket_data["top_ips"],
+                top_user_agents=bucket_data["top_user_agents"],
+                top_status_codes=bucket_data["top_status_codes"],
+            )
+            db.add(aggregate)
+
+        db.commit()
+
+        job.progress = 90.0
+        db.commit()
+
+        # Build result summary
         result_summary = {
             "status": "completed",
-            "message": "Parsing will be implemented in Phase 2",
             "log_file_id": log_file.id,
             "filename": log_file.filename,
             "size_bytes": log_file.size_bytes,
+            "parse_stats": parse_result.to_dict(),
+            "aggregation": aggregation.to_dict(),
         }
 
         # Update job as completed
@@ -127,6 +263,7 @@ def parse_log_file(self, job_id: str) -> dict:
 
     except Exception as e:
         # Handle errors
+        db.rollback()
         if job:
             job.status = JobStatus.FAILED
             job.error_message = str(e)
