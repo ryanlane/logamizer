@@ -9,7 +9,12 @@ from apps.api.config import get_settings
 
 settings = get_settings()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use truncate_error=False to handle the bcrypt 72-byte limit gracefully
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__truncate_error=False,
+)
 
 
 class AuthService:
