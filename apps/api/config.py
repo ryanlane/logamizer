@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     # JWT
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 15
-    refresh_token_expire_days: int = 7
+    access_token_expire_minutes: int = 60  # 1 hour (was 15 min)
+    refresh_token_expire_days: int = 30  # 30 days (was 7 days)
 
     # Database
     database_url: str = "postgresql+asyncpg://logamizer:logamizer@localhost:5432/logamizer"
