@@ -80,6 +80,40 @@
   margin-bottom: 24px;
 }
 
+.daySummary {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.daySummaryHeader {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.daySummaryText {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.daySummaryPlaceholder {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.daySummaryError {
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
 .empty {
   display: flex;
   flex-direction: column;

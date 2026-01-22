@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSites } from "./api/hooks";
 import { getStoredToken, clearAuth } from "./api/client";
 import type { Site } from "./types";
@@ -23,13 +23,60 @@ const WIZARD_STEPS: Step[] = [
 type WizardStep = "welcome" | "site" | "upload" | "results";
 type AppView = "login" | "dashboard" | "wizard" | "site-detail" | "settings";
 
+type RouteState = {
+  view: AppView;
+  step: WizardStep;
+  siteId: string | null;
+};
+
+function parseRoute(pathname: string, isAuthed: boolean): RouteState {
+  if (!isAuthed) {
+    return { view: "login", step: "welcome", siteId: null };
+  }
+
+  if (pathname.startsWith("/settings")) {
+    return { view: "settings", step: "welcome", siteId: null };
+  }
+
+  if (pathname.startsWith("/sites/")) {
+    const siteId = pathname.split("/").filter(Boolean)[1] ?? null;
+    return { view: "site-detail", step: "welcome", siteId };
+  }
+
+  if (pathname.startsWith("/wizard")) {
+    const step = pathname.split("/").filter(Boolean)[1] as WizardStep | undefined;
+    const safeStep: WizardStep = step && ["welcome", "site", "upload", "results"].includes(step)
+      ? step
+      : "site";
+    return { view: "wizard", step: safeStep, siteId: null };
+  }
+
+  if (pathname.startsWith("/login")) {
+    return { view: "login", step: "welcome", siteId: null };
+  }
+
+  return { view: "dashboard", step: "welcome", siteId: null };
+}
+
+function buildPath(view: AppView, step: WizardStep, siteId: string | null): string {
+  if (view === "login") return "/login";
+  if (view === "settings") return "/settings";
+  if (view === "site-detail" && siteId) return `/sites/${siteId}`;
+  if (view === "wizard") return `/wizard/${step}`;
+  return "/";
+}
+
 export default function App() {
-  const [token, setToken] = useState(() => getStoredToken());
-  const [view, setView] = useState<AppView>(() => (getStoredToken() ? "dashboard" : "login"));
+  const initialToken = getStoredToken();
+  const initialRoute = parseRoute(window.location.pathname, Boolean(initialToken));
+
+  const [token, setToken] = useState(() => initialToken);
+  const [view, setView] = useState<AppView>(() => initialRoute.view);
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(() => initialRoute.siteId);
 
   // Wizard state (only used when in wizard mode)
-  const [currentStep, setCurrentStep] = useState<WizardStep>("welcome");
+  const [currentStep, setCurrentStep] = useState<WizardStep>(() => initialRoute.step);
 
   const sitesQuery = useSites();
   const sites = sitesQuery.data?.sites ?? [];
@@ -41,7 +88,45 @@ export default function App() {
   if (isFirstRun && view === "dashboard") {
     setView("wizard");
     setCurrentStep("site");
+    setSelectedSiteId(null);
   }
+
+  useEffect(() => {
+    if (!selectedSiteId) return;
+    if (selectedSite && selectedSite.id === selectedSiteId) return;
+    const site = sites.find((item) => item.id === selectedSiteId) ?? null;
+    if (site) {
+      setSelectedSite(site);
+    }
+  }, [selectedSiteId, selectedSite, sites]);
+
+  useEffect(() => {
+    if (view === "wizard" && !selectedSite && (currentStep === "upload" || currentStep === "results")) {
+      setCurrentStep("site");
+    }
+  }, [view, currentStep, selectedSite]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = parseRoute(window.location.pathname, Boolean(getStoredToken()));
+      setView(route.view);
+      setCurrentStep(route.step);
+      setSelectedSiteId(route.siteId);
+      if (route.view !== "site-detail") {
+        setSelectedSite(null);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const path = buildPath(view, currentStep, selectedSiteId);
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, "", path);
+    }
+  }, [view, currentStep, selectedSiteId]);
 
   // Compute the step index for the stepper (wizard mode)
   const stepIndex = useMemo(() => {
@@ -72,14 +157,17 @@ export default function App() {
     if (sites.length === 0) {
       setView("wizard");
       setCurrentStep("site");
+      setSelectedSiteId(null);
     } else {
       setView("dashboard");
+      setSelectedSiteId(null);
     }
   }, [sites.length]);
 
   // Wizard: Site selection complete handler
   const handleSiteComplete = useCallback((site: Site) => {
     setSelectedSite(site);
+    setSelectedSiteId(site.id);
     setCurrentStep("upload");
   }, []);
 
@@ -92,6 +180,7 @@ export default function App() {
   const handleExitWizard = useCallback(() => {
     setView("dashboard");
     setSelectedSite(null);
+    setSelectedSiteId(null);
     setCurrentStep("site");
   }, []);
 
@@ -100,11 +189,13 @@ export default function App() {
     setView("wizard");
     setCurrentStep("site");
     setSelectedSite(null);
+    setSelectedSiteId(null);
   }, []);
 
   // Dashboard: View site details
   const handleViewSite = useCallback((site: Site) => {
     setSelectedSite(site);
+    setSelectedSiteId(site.id);
     setView("site-detail");
   }, []);
 
@@ -112,6 +203,7 @@ export default function App() {
   const handleBackToDashboard = useCallback(() => {
     setView("dashboard");
     setSelectedSite(null);
+    setSelectedSiteId(null);
   }, []);
 
   // Navigation handler for dashboard layout
@@ -119,9 +211,11 @@ export default function App() {
     if (path === "/") {
       setView("dashboard");
       setSelectedSite(null);
+      setSelectedSiteId(null);
     } else if (path === "/settings") {
       setView("settings");
       setSelectedSite(null);
+      setSelectedSiteId(null);
     }
   }, []);
 
@@ -200,7 +294,7 @@ export default function App() {
   }
 
   // Render dashboard or site detail view
-  const currentPath = view === "dashboard" ? "/" : view === "settings" ? "/settings" : "";
+  const currentPath = view === "settings" ? "/settings" : "/";
 
   return (
     <DashboardLayout onNavigate={handleNavigate} currentPath={currentPath}>

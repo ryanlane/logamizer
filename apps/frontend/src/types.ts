@@ -16,6 +16,7 @@ export type Aggregate = {
   unique_ips: number;
   total_bytes: number;
   top_paths: { path: string; count: number }[] | null;
+  top_ips?: { ip: string; count: number }[] | null;
 };
 
 export type DashboardResponse = {

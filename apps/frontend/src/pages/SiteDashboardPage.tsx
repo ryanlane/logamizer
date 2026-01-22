@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useDashboard, useFindings, useExplainFinding, useVerifyFinding } from "../api/hooks";
+import { useEffect, useMemo, useState } from "react";
+import { useDashboard, useExplain, useFindings, useExplainFinding, useVerifyFinding } from "../api/hooks";
 import { Button } from "../components/Button";
 import { Card, CardHeader } from "../components/Card";
 import { SummaryCards } from "../components/SummaryCards";
@@ -39,7 +39,88 @@ export function SiteDashboardPage({ site, onBack }: Props) {
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
 
   const explainFinding = useExplainFinding();
+  const explainOverview = useExplain();
   const verifyFinding = useVerifyFinding();
+
+  const [daySummary, setDaySummary] = useState<string | null>(null);
+  const [daySummaryError, setDaySummaryError] = useState<string | null>(null);
+  const [isSummarizingDay, setIsSummarizingDay] = useState(false);
+
+  const activeDayKey = useMemo(() => {
+    if (!startDate || !endDate) return null;
+    const startKey = new Date(startDate).toLocaleDateString("en-CA");
+    const endKey = new Date(endDate).toLocaleDateString("en-CA");
+    return startKey === endKey ? startKey : null;
+  }, [startDate, endDate]);
+
+  const hourlyData = dashboard?.hourly_data ?? [];
+
+  const dayAggregates = useMemo(() => {
+    if (!activeDayKey) return [];
+    return hourlyData.filter(
+      (item) => new Date(item.hour_bucket).toLocaleDateString("en-CA") === activeDayKey
+    );
+  }, [hourlyData, activeDayKey]);
+
+  const dayLabel = activeDayKey
+    ? new Date(startDate ?? activeDayKey).toLocaleDateString()
+    : null;
+
+  const dayTopPaths = useMemo(() => {
+    if (!activeDayKey) return undefined;
+    const counts = new Map<string, number>();
+    for (const item of dayAggregates) {
+      (item.top_paths ?? []).forEach((pathItem) => {
+        counts.set(pathItem.path, (counts.get(pathItem.path) ?? 0) + pathItem.count);
+      });
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([path, count]) => ({ path, count }));
+  }, [activeDayKey, dayAggregates]);
+
+  const dayTopIps = useMemo(() => {
+    if (!activeDayKey) return undefined;
+    const counts = new Map<string, number>();
+    for (const item of dayAggregates) {
+      (item.top_ips ?? []).forEach((ipItem) => {
+        counts.set(ipItem.ip, (counts.get(ipItem.ip) ?? 0) + ipItem.count);
+      });
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([ip, count]) => ({ ip, count }));
+  }, [activeDayKey, dayAggregates]);
+
+  const dayTotals = useMemo(() => {
+    if (!activeDayKey) return null;
+    return dayAggregates.reduce(
+      (acc, item) => {
+        acc.totalRequests += item.requests_count;
+        acc.totalBytes += item.total_bytes;
+        acc.status2xx += item.status_2xx;
+        acc.status3xx += item.status_3xx;
+        acc.status4xx += item.status_4xx;
+        acc.status5xx += item.status_5xx;
+        return acc;
+      },
+      {
+        totalRequests: 0,
+        totalBytes: 0,
+        status2xx: 0,
+        status3xx: 0,
+        status4xx: 0,
+        status5xx: 0,
+      }
+    );
+  }, [activeDayKey, dayAggregates]);
+
+  useEffect(() => {
+    setDaySummary(null);
+    setDaySummaryError(null);
+  }, [activeDayKey]);
 
   function handleDateRangeChange(start: string | null, end: string | null) {
     setStartDate(start);
@@ -54,6 +135,40 @@ export function SiteDashboardPage({ site, onBack }: Props) {
   async function handleVerifyFinding(findingId: string): Promise<VerifyFindingResponse> {
     const result = await verifyFinding.mutateAsync({ findingId });
     return result;
+  }
+
+  async function handleExplainDay() {
+    if (!activeDayKey || !dayTotals || !dayLabel) return;
+    setIsSummarizingDay(true);
+    setDaySummaryError(null);
+
+    const topPathsText = (dayTopPaths ?? [])
+      .slice(0, 5)
+      .map((item) => `${item.path} (${item.count})`)
+      .join(", ");
+    const topIpsText = (dayTopIps ?? [])
+      .slice(0, 5)
+      .map((item) => `${item.ip} (${item.count})`)
+      .join(", ");
+
+    const prompt = `Summarize the traffic patterns for ${dayLabel}.\n\n`
+      + `Totals: ${dayTotals.totalRequests} requests, ${dayTotals.status2xx} 2xx, ${dayTotals.status3xx} 3xx, ${dayTotals.status4xx} 4xx, ${dayTotals.status5xx} 5xx, ${dayTotals.totalBytes} bytes.\n`
+      + `Top paths: ${topPathsText || "none"}.\n`
+      + `Top IPs: ${topIpsText || "none"}.\n\n`
+      + `Explain what kind of traffic this looks like (normal users, bots, scans, errors), highlight anomalies, and suggest any follow-up actions.`;
+
+    try {
+      const result = await explainOverview.mutateAsync({
+        siteId: site.id,
+        prompt,
+        context: "overview",
+      });
+      setDaySummary(result.response);
+    } catch (err) {
+      setDaySummaryError((err as Error).message);
+    } finally {
+      setIsSummarizingDay(false);
+    }
   }
 
   const getUploadUrl = useGetUploadUrl();
@@ -194,11 +309,47 @@ export function SiteDashboardPage({ site, onBack }: Props) {
 
       <div className={styles.chartsGrid}>
         <Card>
-          <CardHeader title="Traffic over time" subtitle="Request volume by hour" />
+          <CardHeader
+            title="Traffic over time"
+            subtitle="Request volume by hour"
+            action={
+              activeDayKey ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleExplainDay}
+                  isLoading={isSummarizingDay}
+                >
+                  Explain {dayLabel}
+                </Button>
+              ) : undefined
+            }
+          />
           <TrafficChart data={dashboard.hourly_data} />
+          {activeDayKey && (
+            <div className={styles.daySummary}>
+              <div className={styles.daySummaryHeader}>
+                <span>AI summary for {dayLabel}</span>
+              </div>
+              {daySummaryError && (
+                <div className={styles.daySummaryError}>{daySummaryError}</div>
+              )}
+              {daySummary && <div className={styles.daySummaryText}>{daySummary}</div>}
+              {!daySummary && !daySummaryError && !isSummarizingDay && (
+                <div className={styles.daySummaryPlaceholder}>
+                  Click “Explain {dayLabel}” to generate a traffic summary.
+                </div>
+              )}
+            </div>
+          )}
         </Card>
 
-        <OverviewPanel summary={dashboard.summary} />
+        <OverviewPanel
+          summary={dashboard.summary}
+          topPaths={activeDayKey ? dayTopPaths : undefined}
+          topIps={activeDayKey ? dayTopIps : undefined}
+          filterLabel={activeDayKey ? dayLabel : null}
+        />
       </div>
 
       {findingsData && (
