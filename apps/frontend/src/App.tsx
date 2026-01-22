@@ -173,8 +173,17 @@ export default function App() {
 
   // Wizard: Upload complete handler
   const handleUploadComplete = useCallback(() => {
+    if (selectedSite) {
+      setSelectedSiteId(selectedSite.id);
+      setView("site-detail");
+      return;
+    }
+    if (selectedSiteId) {
+      setView("site-detail");
+      return;
+    }
     setCurrentStep("results");
-  }, []);
+  }, [selectedSite, selectedSiteId]);
 
   // Wizard: Exit to dashboard
   const handleExitWizard = useCallback(() => {

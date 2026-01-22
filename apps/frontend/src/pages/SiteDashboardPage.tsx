@@ -344,12 +344,15 @@ export function SiteDashboardPage({ site, onBack }: Props) {
           )}
         </Card>
 
-        <OverviewPanel
-          summary={dashboard.summary}
-          topPaths={activeDayKey ? dayTopPaths : undefined}
-          topIps={activeDayKey ? dayTopIps : undefined}
-          filterLabel={activeDayKey ? dayLabel : null}
-        />
+        <Card>
+          <CardHeader title="Top paths & IPs" />
+          <OverviewPanel
+            summary={dashboard.summary}
+            topPaths={activeDayKey ? dayTopPaths : undefined}
+            topIps={activeDayKey ? dayTopIps : undefined}
+            filterLabel={activeDayKey ? dayLabel : null}
+          />
+        </Card>
       </div>
 
       {findingsData && (
