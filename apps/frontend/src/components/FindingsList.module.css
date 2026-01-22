@@ -1,102 +1,80 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: 12px;
 }
 
 .item {
-  width: 100%;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-md);
-  background: var(--color-gray-50);
-  transition: all 0.15s ease;
-  text-align: left;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.clickable {
   cursor: pointer;
-  position: relative;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.item:hover {
-  background: white;
-  border-color: var(--color-primary);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+.clickable:hover {
+  border-color: #cbd5f5;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
 }
 
-.clickHint {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-secondary);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.item:hover .clickHint {
-  opacity: 1;
+.clickable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
+  gap: 12px;
 }
 
 .title {
   font-weight: 600;
-  font-size: 15px;
-  color: var(--color-gray-900);
 }
 
 .type {
-  color: var(--color-gray-500);
+  color: #64748b;
   font-size: 12px;
-  margin-top: 2px;
 }
 
 .description {
-  margin: var(--spacing-sm) 0 0;
-  font-size: 14px;
-  color: var(--color-gray-600);
-  line-height: 1.5;
+  margin: 8px 0 0;
+  color: #475569;
 }
 
 .severity {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
   padding: 4px 10px;
-  border-radius: var(--radius-full);
-  color: white;
-  flex-shrink: 0;
+  border-radius: 999px;
+  color: #ffffff;
 }
 
 .critical {
-  background: #991b1b;
+  background: #b91c1c;
 }
 
 .high {
-  background: var(--color-danger);
+  background: #dc2626;
 }
 
 .medium {
-  background: var(--color-warning);
+  background: #f97316;
 }
 
 .low {
-  background: var(--color-info);
+  background: #2563eb;
 }
 
 .info {
-  background: var(--color-gray-600);
+  background: #0f172a;
 }
 
 .empty {
-  padding: var(--spacing-xl);
-  text-align: center;
-  color: var(--color-gray-500);
-  font-size: 14px;
+  color: #64748b;
 }

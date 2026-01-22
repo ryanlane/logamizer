@@ -137,6 +137,7 @@ async def confirm_upload(
     )
     db.add(job)
     await db.flush()
+    await db.commit()
     await db.refresh(job)
 
     # Enqueue Celery task
@@ -145,7 +146,7 @@ async def confirm_upload(
         args=[job.id],
     )
     job.celery_task_id = task.id
-    await db.flush()
+    await db.commit()
 
     return JobResponse.model_validate(job)
 

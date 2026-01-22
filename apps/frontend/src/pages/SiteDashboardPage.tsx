@@ -12,6 +12,7 @@ import { DateRangePicker } from "../components/DateRangePicker";
 import { uploadFileToS3, useGetUploadUrl, useConfirmUpload, useJob } from "../api/hooks";
 import type { Site, Finding, VerifyFindingResponse } from "../types";
 import styles from "./SiteDashboardPage.module.css";
+import inputStyles from "../components/Input.module.css";
 
 type Props = {
   site: Site;
@@ -25,7 +26,8 @@ export function SiteDashboardPage({ site, onBack }: Props) {
   const [endDate, setEndDate] = useState<string | null>(null);
 
   const { data: dashboard, isLoading, error } = useDashboard(site.id, startDate, endDate);
-  const { data: findingsData } = useFindings(site.id, startDate, endDate);
+  const [severityFilter, setSeverityFilter] = useState<string | null>(null);
+  const { data: findingsData } = useFindings(site.id, startDate, endDate, severityFilter);
   const findings = findingsData?.findings ?? [];
 
   const [isUploadMode, setIsUploadMode] = useState(false);
@@ -199,11 +201,26 @@ export function SiteDashboardPage({ site, onBack }: Props) {
         <OverviewPanel summary={dashboard.summary} />
       </div>
 
-      {findings.length > 0 && (
+      {findingsData && (
         <Card>
           <CardHeader
             title="Security findings"
             subtitle={`${findings.length} issue${findings.length === 1 ? "" : "s"} detected`}
+            action={
+              <select
+                className={`${inputStyles.input} ${inputStyles.select}`}
+                value={severityFilter ?? ""}
+                onChange={(event) => setSeverityFilter(event.target.value || null)}
+                aria-label="Filter findings by severity"
+              >
+                <option value="">All levels</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+                <option value="info">Info</option>
+              </select>
+            }
           />
           <FindingsList findings={findings} onFindingClick={setSelectedFinding} />
         </Card>

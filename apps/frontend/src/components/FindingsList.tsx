@@ -22,10 +22,19 @@ export function FindingsList({ findings, onFindingClick }: Props) {
   return (
     <div className={styles.list}>
       {findings.map((finding) => (
-        <button
+        <div
           key={finding.id}
-          className={styles.item}
+          className={`${styles.item} ${onFindingClick ? styles.clickable : ""}`}
           onClick={() => onFindingClick?.(finding)}
+          role={onFindingClick ? "button" : undefined}
+          tabIndex={onFindingClick ? 0 : undefined}
+          onKeyDown={(event) => {
+            if (!onFindingClick) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onFindingClick(finding);
+            }
+          }}
         >
           <div className={styles.header}>
             <div>
@@ -37,14 +46,7 @@ export function FindingsList({ findings, onFindingClick }: Props) {
             </span>
           </div>
           <p className={styles.description}>{finding.description}</p>
-          {onFindingClick && (
-            <div className={styles.clickHint}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </div>
-          )}
-        </button>
+        </div>
       ))}
     </div>
   );

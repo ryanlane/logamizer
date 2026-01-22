@@ -30,14 +30,20 @@ export function useDashboard(siteId?: string, startDate?: string | null, endDate
   });
 }
 
-export function useFindings(siteId?: string, startDate?: string | null, endDate?: string | null) {
+export function useFindings(
+  siteId?: string,
+  startDate?: string | null,
+  endDate?: string | null,
+  severity?: string | null
+) {
   const token = getStoredToken();
   return useQuery({
-    queryKey: ["findings", siteId, startDate, endDate],
+    queryKey: ["findings", siteId, startDate, endDate, severity],
     queryFn: () => {
       const params = new URLSearchParams();
       if (startDate) params.append("start_date", startDate);
       if (endDate) params.append("end_date", endDate);
+      if (severity) params.append("severity", severity);
       const queryString = params.toString();
       return apiFetch<{ findings: Finding[] }>(
         `/api/sites/${siteId}/findings${queryString ? `?${queryString}` : ""}`
