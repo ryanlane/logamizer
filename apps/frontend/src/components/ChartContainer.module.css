@@ -1,0 +1,12 @@
+.chartWrapper {
+  width: 100%;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 16px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  background: var(--color-background);
+}

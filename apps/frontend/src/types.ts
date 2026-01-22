@@ -17,6 +17,8 @@ export type Aggregate = {
   total_bytes: number;
   top_paths: { path: string; count: number }[] | null;
   top_ips?: { ip: string; count: number }[] | null;
+  top_user_agents?: { user_agent?: string | null; count: number }[] | null;
+  top_status_codes?: { status?: number | null; count: number }[] | null;
 };
 
 export type DashboardResponse = {

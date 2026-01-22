@@ -77,6 +77,11 @@ class Site(Base):
         back_populates="site",
         cascade="all, delete-orphan",
     )
+    log_sources: Mapped[list["LogSource"]] = relationship(  # noqa: F821
+        "LogSource",
+        back_populates="site",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Site {self.name}>"

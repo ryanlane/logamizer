@@ -12,6 +12,7 @@ from apps.api.routers import (
     finding_actions_router,
     findings_router,
     jobs_router,
+    log_sources_router,
     ollama_router,
     sites_router,
     uploads_router,
@@ -55,6 +56,7 @@ app.include_router(findings_router, prefix="/api")
 app.include_router(finding_actions_router, prefix="/api")
 app.include_router(explain_router, prefix="/api")
 app.include_router(ollama_router, prefix="/api")
+app.include_router(log_sources_router, prefix="/api")
 
 
 @app.get("/health")

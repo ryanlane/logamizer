@@ -4,6 +4,11 @@ import { Button } from "../components/Button";
 import { Card, CardHeader } from "../components/Card";
 import { SummaryCards } from "../components/SummaryCards";
 import { TrafficChart } from "../components/TrafficChart";
+import { StatusBreakdownChart } from "../components/StatusBreakdownChart";
+import { ErrorRateChart } from "../components/ErrorRateChart";
+import { BandwidthChart } from "../components/BandwidthChart";
+import { TopUserAgentsChart } from "../components/TopUserAgentsChart";
+import { TopStatusCodesChart } from "../components/TopStatusCodesChart";
 import { FindingsList } from "../components/FindingsList";
 import { FindingDetailModal } from "../components/FindingDetailModal";
 import { OverviewPanel } from "../components/OverviewPanel";
@@ -62,6 +67,11 @@ export function SiteDashboardPage({ site, onBack }: Props) {
     );
   }, [hourlyData, activeDayKey]);
 
+  const activeAggregates = useMemo(
+    () => (activeDayKey ? dayAggregates : hourlyData),
+    [activeDayKey, dayAggregates, hourlyData]
+  );
+
   const dayLabel = activeDayKey
     ? new Date(startDate ?? activeDayKey).toLocaleDateString()
     : null;
@@ -116,6 +126,34 @@ export function SiteDashboardPage({ site, onBack }: Props) {
       }
     );
   }, [activeDayKey, dayAggregates]);
+
+  const topUserAgents = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of activeAggregates) {
+      (item.top_user_agents ?? []).forEach((uaItem) => {
+        const label = uaItem.user_agent || "Unknown";
+        counts.set(label, (counts.get(label) ?? 0) + uaItem.count);
+      });
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([label, count]) => ({ label, count }));
+  }, [activeAggregates]);
+
+  const topStatusCodes = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const item of activeAggregates) {
+      (item.top_status_codes ?? []).forEach((statusItem) => {
+        if (typeof statusItem.status !== "number") return;
+        counts.set(statusItem.status, (counts.get(statusItem.status) ?? 0) + statusItem.count);
+      });
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([status, count]) => ({ status, count }));
+  }, [activeAggregates]);
 
   useEffect(() => {
     setDaySummary(null);
@@ -325,7 +363,7 @@ export function SiteDashboardPage({ site, onBack }: Props) {
               ) : undefined
             }
           />
-          <TrafficChart data={dashboard.hourly_data} />
+          <TrafficChart data={hourlyData} />
           {activeDayKey && (
             <div className={styles.daySummary}>
               <div className={styles.daySummaryHeader}>
@@ -352,6 +390,33 @@ export function SiteDashboardPage({ site, onBack }: Props) {
             topIps={activeDayKey ? dayTopIps : undefined}
             filterLabel={activeDayKey ? dayLabel : null}
           />
+        </Card>
+      </div>
+
+      <div className={styles.analyticsGrid}>
+        <Card>
+          <CardHeader title="Status breakdown" subtitle="2xx, 3xx, 4xx, 5xx per hour" />
+          <StatusBreakdownChart data={activeAggregates} />
+        </Card>
+
+        <Card>
+          <CardHeader title="Error rate" subtitle="4xx + 5xx as % of requests" />
+          <ErrorRateChart data={activeAggregates} />
+        </Card>
+
+        <Card>
+          <CardHeader title="Bandwidth" subtitle="Bytes transferred per hour" />
+          <BandwidthChart data={activeAggregates} />
+        </Card>
+
+        <Card>
+          <CardHeader title="Top user agents" subtitle="Most common clients" />
+          <TopUserAgentsChart data={topUserAgents} />
+        </Card>
+
+        <Card>
+          <CardHeader title="Top status codes" subtitle="Most frequent responses" />
+          <TopStatusCodesChart data={topStatusCodes} />
         </Card>
       </div>
 
