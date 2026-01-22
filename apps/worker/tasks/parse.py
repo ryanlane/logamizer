@@ -3,12 +3,22 @@
 import json
 import os
 from datetime import UTC, datetime
+from uuid import uuid4
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    String,
+    Text,
+    create_engine,
+    func,
+)
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
-from apps.api.models.job import Job
-from apps.api.models.log_file import LogFile
 from apps.worker.celery_app import celery_app
 from packages.shared.enums import JobStatus, LogFileStatus
 
@@ -20,6 +30,43 @@ DATABASE_URL = os.getenv(
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
+
+# Define minimal models for the worker (to avoid importing async API models)
+Base = declarative_base()
+
+
+class Job(Base):
+    """Job model for worker."""
+
+    __tablename__ = "jobs"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    log_file_id = Column(UUID(as_uuid=False), ForeignKey("log_files.id"), nullable=False)
+    job_type = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False)
+    progress = Column(Float, nullable=False, default=0.0)
+    result_summary = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+    celery_task_id = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class LogFile(Base):
+    """LogFile model for worker."""
+
+    __tablename__ = "log_files"
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4()))
+    site_id = Column(UUID(as_uuid=False), nullable=False)
+    filename = Column(String(255), nullable=False)
+    size_bytes = Column(BigInteger, nullable=True)
+    hash_sha256 = Column(String(64), nullable=True)
+    storage_key = Column(String(512), nullable=False)
+    status = Column(String(50), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    uploaded_at = Column(DateTime(timezone=True), nullable=True)
 
 
 @celery_app.task(bind=True, name="apps.worker.tasks.parse.parse_log_file")
