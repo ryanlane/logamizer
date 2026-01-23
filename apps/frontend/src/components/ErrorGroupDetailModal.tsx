@@ -146,17 +146,7 @@ export function ErrorGroupDetailModal({ site, group, onClose, onStatusChange }: 
             ) : null}
 
             <div className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <h3 className={styles.sectionTitle}>AI Analysis</h3>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleExplain}
-                  isLoading={explainGroup.isPending}
-                >
-                  Explain with AI
-                </Button>
-              </div>
+              <h3 className={styles.sectionTitle}>AI Analysis</h3>
               {explainError && <div className={styles.inlineError}>{explainError}</div>}
               {explanation ? (
                 <div className={styles.explanation}>{explanation}</div>
@@ -169,9 +159,18 @@ export function ErrorGroupDetailModal({ site, group, onClose, onStatusChange }: 
           </div>
 
           <div className={styles.footer}>
-            <Button variant="secondary" onClick={onClose}>
-              Close
-            </Button>
+            <div className={styles.footerActions}>
+              <Button
+                variant="secondary"
+                onClick={handleExplain}
+                isLoading={explainGroup.isPending}
+              >
+                Explain with AI
+              </Button>
+              <Button variant="secondary" onClick={onClose}>
+                Close
+              </Button>
+            </div>
             <div className={styles.statusActions}>
               {group.status === "unresolved" ? (
                 <>

@@ -23,9 +23,17 @@ class OllamaService:
             "prompt": prompt,
             "stream": False,
         }
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(f"{self.base_url}/api/generate", json=payload)
-            response.raise_for_status()
-            data = response.json()
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json=payload,
+                )
+                response.raise_for_status()
+                data = response.json()
+        except httpx.HTTPError as exc:
+            raise RuntimeError(
+                f"Unable to reach Ollama at {self.base_url} (model={self.model}): {exc}"
+            ) from exc
 
         return data.get("response", "")

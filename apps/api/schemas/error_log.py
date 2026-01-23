@@ -87,6 +87,20 @@ class ErrorGroupsListResponse(BaseModel):
     ignored: int
 
 
+class ErrorTypeCount(BaseModel):
+    """Error type count."""
+
+    error_type: str
+    count: int
+
+
+class ErrorTrendPoint(BaseModel):
+    """Hourly error trend point."""
+
+    hour: str
+    count: int
+
+
 class ErrorStatsResponse(BaseModel):
     """Error statistics response."""
 
@@ -94,8 +108,8 @@ class ErrorStatsResponse(BaseModel):
     total_groups: int
     errors_24h: int
     errors_7d: int
-    top_error_types: list[dict[str, int]]
-    error_trend: list[dict[str, int | str]]  # Hourly error counts
+    top_error_types: list[ErrorTypeCount]
+    error_trend: list[ErrorTrendPoint]  # Hourly error counts
 
 
 class ErrorGroupUpdateRequest(BaseModel):
