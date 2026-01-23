@@ -12,12 +12,14 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from apps.api.config import get_settings
+from apps.api.models.job import Job
 from apps.api.models.log_file import LogFile
 from apps.api.models.log_source import LogSource
 from apps.api.services.storage import get_storage_service
 from apps.worker.celery_app import app
 from apps.worker.fetchers import SSHLogFetcher, S3LogFetcher
 from apps.worker.tasks.parse import parse_log_file
+from packages.shared.enums import JobStatus, JobType
 
 settings = get_settings()
 
@@ -115,6 +117,8 @@ async def _fetch_logs_async(log_source_id: str) -> dict:
             # Upload each file to storage and create log file records
             storage = get_storage_service()
 
+            skipped_files = []
+
             for filename, file_content, size_bytes in files:
                 # Generate storage key
                 storage_key = f"sites/{log_source.site_id}/logs/{log_source_id}/{uuid4()}/{filename}"
@@ -125,6 +129,19 @@ async def _fetch_logs_async(log_source_id: str) -> dict:
                 import hashlib
 
                 file_hash = hashlib.sha256(content).hexdigest()
+
+                # Skip duplicates by hash
+                existing = await db.execute(
+                    select(LogFile.id)
+                    .where(
+                        LogFile.site_id == log_source.site_id,
+                        LogFile.hash_sha256 == file_hash,
+                    )
+                    .limit(1)
+                )
+                if existing.scalar_one_or_none():
+                    skipped_files.append(filename)
+                    continue
 
                 # Upload to storage
                 file_content.seek(0)
@@ -142,8 +159,19 @@ async def _fetch_logs_async(log_source_id: str) -> dict:
                 db.add(log_file)
                 await db.flush()  # Get the log_file.id
 
-                # Enqueue parsing task
-                parse_log_file.delay(str(log_file.id))
+                # Create job record and enqueue parsing task
+                job = Job(
+                    log_file_id=log_file.id,
+                    job_type=JobType.PARSE,
+                    status=JobStatus.PENDING,
+                )
+                db.add(job)
+                await db.flush()
+
+                # Commit before enqueueing so the worker can see the job
+                await db.commit()
+
+                parse_log_file.delay(str(job.id))
 
                 total_bytes += size_bytes
                 fetched_files.append(filename)
@@ -159,6 +187,7 @@ async def _fetch_logs_async(log_source_id: str) -> dict:
                 "files_fetched": len(fetched_files),
                 "total_bytes": total_bytes,
                 "files": fetched_files,
+                "skipped": skipped_files,
             }
 
         except Exception as e:

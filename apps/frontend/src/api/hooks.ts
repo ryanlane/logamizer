@@ -104,16 +104,9 @@ export function useCreateSite() {
   });
 }
 
-type UpdateSiteInput = {
-  name?: string;
-  domain?: string;
-  log_format?: string;
-  anomaly_baseline_days?: number;
-  anomaly_min_baseline_hours?: number;
-  anomaly_z_threshold?: number;
-  anomaly_new_path_min_count?: number;
-  filtered_ips?: string[];
-};
+type UpdateSiteInput = Partial<
+  Pick<Site, "name" | "domain" | "log_format" | "filtered_ips">
+>;
 
 export function useUpdateSite(siteId: string) {
   const queryClient = useQueryClient();
@@ -128,16 +121,6 @@ export function useUpdateSite(siteId: string) {
       queryClient.invalidateQueries({ queryKey: ["sites"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", siteId] });
     },
-  });
-}
-
-type PublicIPResponse = {
-  ip: string;
-};
-
-export function useGetPublicIP() {
-  return useMutation({
-    mutationFn: () => apiFetch<PublicIPResponse>("/api/public-ip"),
   });
 }
 
@@ -259,6 +242,18 @@ export function useVerifyFinding() {
       apiFetch<VerifyFindingResponse>(`/api/findings/${findingId}/verify`, {
         method: "POST",
       }),
+  });
+}
+
+export function useGetPublicIP() {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await fetch("https://api.ipify.org?format=json");
+      if (!response.ok) {
+        throw new Error("Failed to detect public IP");
+      }
+      return (await response.json()) as { ip?: string };
+    },
   });
 }
 
@@ -387,6 +382,13 @@ export function useLogSources(siteId?: string) {
     queryKey: ["log-sources", siteId],
     queryFn: () => apiFetch<LogSourceListResponse>(`/api/sites/${siteId}/log-sources`),
     enabled: Boolean(siteId && token),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const hasQueued = data?.log_sources?.some(
+        (source) => source.last_fetch_status === "queued"
+      );
+      return hasQueued ? 3000 : false;
+    },
   });
 }
 
