@@ -1,6 +1,7 @@
 """Error analysis tasks for processing and grouping errors."""
 
 import asyncio
+import os
 from datetime import datetime
 
 from celery import shared_task
@@ -16,9 +17,27 @@ from apps.worker.parsers.error_parser import ErrorLogParser
 
 settings = get_settings()
 
-# Create async database session for worker
-engine = create_async_engine(settings.database_url)
-async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+_engine = None
+_engine_pid: int | None = None
+_async_session_maker = None
+
+
+def _get_session_maker() -> sessionmaker:
+    """Create a session maker tied to the current process."""
+    global _engine, _engine_pid, _async_session_maker
+    pid = os.getpid()
+    if _engine is None or _engine_pid != pid:
+        _engine = create_async_engine(settings.database_url)
+        _async_session_maker = sessionmaker(
+            _engine, class_=AsyncSession, expire_on_commit=False
+        )
+        _engine_pid = pid
+    return _async_session_maker
+
+
+def _get_session() -> AsyncSession:
+    """Create a new async session."""
+    return _get_session_maker()()
 
 
 @shared_task(bind=True, name="analyze_errors_in_log_file")
@@ -37,7 +56,7 @@ def analyze_errors_in_log_file(self, log_file_id: str, log_format: str = "auto")
 
 async def _analyze_errors_async(log_file_id: str, log_format: str = "auto") -> dict:
     """Async implementation of error analysis."""
-    async with async_session_maker() as db:
+    async with _get_session() as db:
         # Get log file
         result = await db.execute(select(LogFile).where(LogFile.id == log_file_id))
         log_file = result.scalar_one_or_none()
@@ -165,7 +184,7 @@ def update_error_rates(site_id: str, time_window_hours: int = 24) -> dict:
 
 async def _update_error_rates_async(site_id: str, time_window_hours: int = 24) -> dict:
     """Async implementation of error rate calculation."""
-    async with async_session_maker() as db:
+    async with _get_session() as db:
         from datetime import timedelta
 
         cutoff_time = datetime.utcnow() - timedelta(hours=time_window_hours)

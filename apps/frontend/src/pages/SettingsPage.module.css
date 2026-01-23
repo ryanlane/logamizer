@@ -244,6 +244,39 @@
   font-size: 14px;
 }
 
+.pullProgressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.pullPercent {
+  font-size: 12px;
+  color: var(--color-info);
+}
+
+.pullProgressBar {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.pullProgressFill {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.2s ease;
+}
+
+.pullProgressDetail {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
 .aboutText {
   font-size: 14px;
   color: var(--color-text-secondary);

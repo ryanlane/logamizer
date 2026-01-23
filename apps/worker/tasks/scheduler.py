@@ -1,10 +1,11 @@
 """Scheduler tasks for periodic log fetching."""
 
-from datetime import datetime
+import os
+from datetime import datetime, timezone
 
 from celery import shared_task
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from apps.api.config import get_settings
@@ -13,9 +14,27 @@ from apps.worker.tasks.fetch import fetch_logs_from_source
 
 settings = get_settings()
 
-# Create async database session for scheduler
-engine = create_async_engine(settings.database_url)
-async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+_engine = None
+_engine_pid: int | None = None
+_async_session_maker = None
+
+
+def _get_session_maker() -> sessionmaker:
+    """Create a session maker tied to the current process."""
+    global _engine, _engine_pid, _async_session_maker
+    pid = os.getpid()
+    if _engine is None or _engine_pid != pid:
+        _engine = create_async_engine(settings.database_url)
+        _async_session_maker = sessionmaker(
+            _engine, class_=AsyncSession, expire_on_commit=False
+        )
+        _engine_pid = pid
+    return _async_session_maker
+
+
+def _get_session() -> AsyncSession:
+    """Create a new async session."""
+    return _get_session_maker()()
 
 
 @shared_task(name="schedule_log_fetches")
@@ -32,7 +51,7 @@ def schedule_log_fetches() -> dict:
 
 async def _schedule_fetches_async() -> dict:
     """Async implementation of fetch scheduling."""
-    async with async_session_maker() as db:
+    async with _get_session() as db:
         # Get all active log sources
         result = await db.execute(
             select(LogSource).where(LogSource.status == LogSourceStatus.ACTIVE)
@@ -71,13 +90,21 @@ def _is_fetch_due(log_source: LogSource) -> bool:
     if log_source.last_fetch_at is None:
         return True
 
+    last_fetch_at = log_source.last_fetch_at
+    if last_fetch_at.tzinfo is None:
+        last_fetch_at = last_fetch_at.replace(tzinfo=timezone.utc)
+    else:
+        last_fetch_at = last_fetch_at.astimezone(timezone.utc)
+
+    now = datetime.now(timezone.utc)
+
     schedule_type = log_source.schedule_type
     schedule_config = log_source.schedule_config
 
     if schedule_type == "interval":
         # Interval-based scheduling
         interval_minutes = schedule_config.get("interval_minutes", 60)
-        minutes_since_last = (datetime.utcnow() - log_source.last_fetch_at).total_seconds() / 60
+        minutes_since_last = (now - last_fetch_at).total_seconds() / 60
 
         return minutes_since_last >= interval_minutes
 
@@ -85,6 +112,6 @@ def _is_fetch_due(log_source: LogSource) -> bool:
         # Cron-based scheduling (simplified implementation)
         # For a full cron implementation, use python-crontab or similar
         # For now, just use a simple interval as fallback
-        return (datetime.utcnow() - log_source.last_fetch_at).total_seconds() >= 3600  # 1 hour
+        return (now - last_fetch_at).total_seconds() >= 3600  # 1 hour
 
     return False

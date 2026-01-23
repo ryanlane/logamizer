@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "../components/Button";
 import { Card, CardHeader } from "../components/Card";
+import { apiFetch, getStoredToken } from "../api/client";
 import { useUserSettings } from "../utils/settings";
 import styles from "./SettingsPage.module.css";
 
@@ -22,6 +23,8 @@ export function SettingsPage({ onBack }: Props) {
   const [isPulling, setIsPulling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pullProgress, setPullProgress] = useState<string>("");
+  const [pullPercent, setPullPercent] = useState<number | null>(null);
+  const [pullDetail, setPullDetail] = useState<string>("");
 
   const { settings, updateSettings } = useUserSettings();
   const [hiddenIpsText, setHiddenIpsText] = useState<string>("");
@@ -42,9 +45,7 @@ export function SettingsPage({ onBack }: Props) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/ollama/models");
-      if (!response.ok) throw new Error("Failed to fetch models");
-      const data = await response.json();
+      const data = await apiFetch<{ models?: OllamaModel[] }>("/api/ollama/models");
       setModels(data.models || []);
     } catch (err) {
       setError((err as Error).message);
@@ -55,9 +56,7 @@ export function SettingsPage({ onBack }: Props) {
 
   async function loadSelectedModel() {
     try {
-      const response = await fetch("/api/ollama/config");
-      if (!response.ok) throw new Error("Failed to fetch config");
-      const data = await response.json();
+      const data = await apiFetch<{ model?: string }>("/api/ollama/config");
       setSelectedModel(data.model || "");
     } catch (err) {
       console.error("Failed to load selected model:", err);
@@ -70,66 +69,107 @@ export function SettingsPage({ onBack }: Props) {
     setIsPulling(true);
     setError(null);
     setPullProgress("Starting download...");
+    setPullPercent(null);
+    setPullDetail("");
 
     try {
-      const response = await fetch("/api/ollama/pull", {
+      const token = getStoredToken();
+      const response = await fetch("/api/ollama/pull/stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ model: newModelName.trim() }),
       });
 
       if (!response.ok) {
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.detail || "Failed to pull model");
       }
 
-      // For now, just poll for completion
-      // In a real implementation, you'd want to stream progress
-      setPullProgress("Downloading model... This may take several minutes.");
+      if (!response.body) {
+        throw new Error("No progress stream available");
+      }
 
-      // Poll until model appears in list
-      let attempts = 0;
-      const maxAttempts = 60; // 5 minutes max
-      const pollInterval = setInterval(async () => {
-        attempts++;
-        const listResponse = await fetch("/api/ollama/models");
-        if (listResponse.ok) {
-          const data = await listResponse.json();
-          const modelExists = data.models?.some((m: OllamaModel) =>
-            m.name.includes(newModelName.trim())
-          );
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-          if (modelExists || attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            setIsPulling(false);
-            setPullProgress("");
-            if (modelExists) {
-              setNewModelName("");
-              await loadModels();
-            } else {
-              setError("Model download timed out. Check Ollama logs.");
+      const formatBytes = (value: number) => {
+        if (!value) return "0 B";
+        const units = ["B", "KB", "MB", "GB"];
+        let size = value;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex++;
+        }
+        return `${size.toFixed(1)} ${units[unitIndex]}`;
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            const data = JSON.parse(trimmed) as {
+              status?: string;
+              total?: number;
+              completed?: number;
+              digest?: string;
+              error?: string;
+            };
+
+            if (data.error) {
+              throw new Error(data.error);
             }
-          } else {
-            setPullProgress(`Downloading... ${attempts * 5}s elapsed`);
+
+            if (data.status) {
+              setPullProgress(data.status);
+            }
+
+            if (typeof data.total === "number" && typeof data.completed === "number") {
+              const percent = Math.min(100, Math.round((data.completed / data.total) * 100));
+              setPullPercent(percent);
+              setPullDetail(`${formatBytes(data.completed)} / ${formatBytes(data.total)}`);
+            } else if (data.digest) {
+              setPullDetail(`Layer ${data.digest.slice(0, 12)}…`);
+            }
+          } catch (err) {
+            throw err;
           }
         }
-      }, 5000);
+      }
+
+      setPullProgress("Download complete");
+      setPullPercent(100);
+      setPullDetail("");
+      setIsPulling(false);
+      setNewModelName("");
+      await loadModels();
     } catch (err) {
       setError((err as Error).message);
       setIsPulling(false);
       setPullProgress("");
+      setPullPercent(null);
+      setPullDetail("");
     }
   }
 
   async function handleSelectModel(modelName: string) {
     try {
-      const response = await fetch("/api/ollama/config", {
+      await apiFetch<{ model?: string }>("/api/ollama/config", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: modelName }),
       });
-
-      if (!response.ok) throw new Error("Failed to update model");
 
       setSelectedModel(modelName);
     } catch (err) {
@@ -266,7 +306,23 @@ export function SettingsPage({ onBack }: Props) {
 
           {pullProgress && (
             <div className={styles.pullProgress}>
-              {pullProgress}
+              <div className={styles.pullProgressHeader}>
+                <span>{pullProgress}</span>
+                {pullPercent !== null && (
+                  <span className={styles.pullPercent}>{pullPercent}%</span>
+                )}
+              </div>
+              {pullPercent !== null && (
+                <div className={styles.pullProgressBar}>
+                  <div
+                    className={styles.pullProgressFill}
+                    style={{ width: `${pullPercent}%` }}
+                  />
+                </div>
+              )}
+              {pullDetail && (
+                <div className={styles.pullProgressDetail}>{pullDetail}</div>
+              )}
             </div>
           )}
         </div>

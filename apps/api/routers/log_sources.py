@@ -1,5 +1,7 @@
 """Log source routes for scheduled fetching."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -378,6 +380,11 @@ async def trigger_immediate_fetch(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Log source not found",
         )
+
+    log_source.last_fetch_at = datetime.utcnow()
+    log_source.last_fetch_status = "queued"
+    log_source.last_fetch_error = None
+    await db.commit()
 
     # Enqueue fetch task
     from apps.worker.tasks.fetch import fetch_logs_from_source

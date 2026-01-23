@@ -1,8 +1,11 @@
 """Ollama management routes."""
 
+import json
+
 import httpx
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
+from starlette.responses import StreamingResponse
 
 from apps.api.config import get_settings
 from apps.api.dependencies import CurrentUser
@@ -123,3 +126,33 @@ async def pull_model(request: PullModelRequest, current_user: CurrentUser) -> di
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Failed to pull model: {str(e)}",
         )
+
+
+@router.post("/pull/stream")
+async def pull_model_stream(
+    request: PullModelRequest, current_user: CurrentUser
+) -> StreamingResponse:
+    """Stream model pull progress from Ollama."""
+    if not settings.ollama_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Ollama service is not enabled",
+        )
+
+    async def stream():
+        timeout = httpx.Timeout(10.0, read=None)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            try:
+                async with client.stream(
+                    "POST",
+                    f"{settings.ollama_base_url}/api/pull",
+                    json={"name": request.model, "stream": True},
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line:
+                            yield line + "\n"
+            except httpx.HTTPError as exc:
+                yield json.dumps({"error": f"Failed to pull model: {exc}"}) + "\n"
+
+    return StreamingResponse(stream(), media_type="text/plain")

@@ -88,7 +88,7 @@ class SSHLogFetcher(LogFetcher):
             # Check if remote_path is a directory or file
             stat = await sftp.stat(remote_path)
 
-            if stat.isdir():
+            if stat.type == asyncssh.FILEXFER_TYPE_DIRECTORY:
                 # List files in directory and filter by pattern
                 entries = await sftp.listdir(remote_path)
                 for entry in entries:

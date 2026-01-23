@@ -1,14 +1,14 @@
 """Log fetching tasks."""
 
+import os
 from datetime import datetime
 from io import BytesIO
 from uuid import uuid4
 
 from celery import shared_task
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.config import get_settings
 from apps.api.models.log_file import LogFile
@@ -20,9 +20,27 @@ from apps.worker.tasks.parse import parse_log_file
 
 settings = get_settings()
 
-# Create async database session for worker
-engine = create_async_engine(settings.database_url)
-async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+_engine = None
+_engine_pid: int | None = None
+_async_session_maker = None
+
+
+def _get_session_maker() -> sessionmaker:
+    """Create a session maker tied to the current process."""
+    global _engine, _engine_pid, _async_session_maker
+    pid = os.getpid()
+    if _engine is None or _engine_pid != pid:
+        _engine = create_async_engine(settings.database_url)
+        _async_session_maker = sessionmaker(
+            _engine, class_=AsyncSession, expire_on_commit=False
+        )
+        _engine_pid = pid
+    return _async_session_maker
+
+
+def _get_session() -> AsyncSession:
+    """Create a new async session."""
+    return _get_session_maker()()
 
 
 async def get_fetcher(source_type: str, config: dict):
@@ -52,7 +70,7 @@ def fetch_logs_from_source(self, log_source_id: str) -> dict:
 
 async def _fetch_logs_async(log_source_id: str) -> dict:
     """Async implementation of log fetching."""
-    async with async_session_maker() as db:
+    async with _get_session() as db:
         # Get log source
         result = await db.execute(
             select(LogSource).where(LogSource.id == log_source_id)
@@ -179,7 +197,7 @@ def test_log_source_connection(log_source_id: str) -> dict:
 
 async def _test_connection_async(log_source_id: str) -> dict:
     """Async implementation of connection testing."""
-    async with async_session_maker() as db:
+    async with _get_session() as db:
         # Get log source
         result = await db.execute(
             select(LogSource).where(LogSource.id == log_source_id)
