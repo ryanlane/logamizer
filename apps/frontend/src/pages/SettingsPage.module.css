@@ -3,6 +3,10 @@
   margin: 0 auto;
 }
 
+.cardSpacing {
+  margin-top: 24px;
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -182,6 +186,53 @@
 .modelInput:disabled {
   background: var(--color-background);
   cursor: not-allowed;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--color-text);
+  background: white;
+  transition: all 0.2s;
+  resize: vertical;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.actionsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.helperText {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.publicIp {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.inlineError {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-danger);
 }
 
 .pullProgress {

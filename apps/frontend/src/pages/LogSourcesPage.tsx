@@ -19,7 +19,7 @@ type Props = {
 export function LogSourcesPage({ site, onBack }: Props) {
   const { data, isLoading, error } = useLogSources(site.id);
   const deleteLogSource = useDeleteLogSource(site.id);
-  const fetchNow = useFetchNow(site.id, "");
+  const fetchNow = useFetchNow(site.id);
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingSource, setEditingSource] = useState<LogSource | null>(null);
@@ -33,9 +33,7 @@ export function LogSourcesPage({ site, onBack }: Props) {
   }
 
   function handleFetchNow(logSourceId: string) {
-    fetchNow.mutate(undefined, {
-      mutationKey: ["fetch-now", site.id, logSourceId],
-    });
+    fetchNow.mutate({ logSourceId });
   }
 
   function formatBytes(bytes: number | null): string {

@@ -5,8 +5,9 @@ import type { Site } from "./types";
 import { DashboardLayout } from "./components/DashboardLayout";
 import { SiteListPage } from "./pages/SiteListPage";
 import { SiteDashboardPage } from "./pages/SiteDashboardPage";
-import { SettingsPage } from "./pages/SettingsPage";
 import { LogSourcesPage } from "./pages/LogSourcesPage";
+import { ErrorsPage } from "./pages/ErrorsPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { Stepper, type Step } from "./components/Stepper";
 import { WelcomeStep } from "./components/steps/WelcomeStep";
 import { SiteSetupStep } from "./components/steps/SiteSetupStep";
@@ -22,7 +23,14 @@ const WIZARD_STEPS: Step[] = [
 ];
 
 type WizardStep = "welcome" | "site" | "upload" | "results";
-type AppView = "login" | "dashboard" | "wizard" | "site-detail" | "settings" | "log-sources";
+type AppView =
+  | "login"
+  | "dashboard"
+  | "wizard"
+  | "site-detail"
+  | "log-sources"
+  | "errors"
+  | "settings";
 
 type RouteState = {
   view: AppView;
@@ -42,10 +50,14 @@ function parseRoute(pathname: string, isAuthed: boolean): RouteState {
   if (pathname.startsWith("/sites/")) {
     const parts = pathname.split("/").filter(Boolean);
     const siteId = parts[1] ?? null;
+    const subRoute = parts[2] ?? null;
 
-    // Check if this is a log-sources sub-route
-    if (parts[2] === "log-sources") {
+    if (subRoute === "log-sources") {
       return { view: "log-sources", step: "welcome", siteId };
+    }
+
+    if (subRoute === "errors") {
+      return { view: "errors", step: "welcome", siteId };
     }
 
     return { view: "site-detail", step: "welcome", siteId };
@@ -69,8 +81,9 @@ function parseRoute(pathname: string, isAuthed: boolean): RouteState {
 function buildPath(view: AppView, step: WizardStep, siteId: string | null): string {
   if (view === "login") return "/login";
   if (view === "settings") return "/settings";
-  if (view === "log-sources" && siteId) return `/sites/${siteId}/log-sources`;
   if (view === "site-detail" && siteId) return `/sites/${siteId}`;
+  if (view === "log-sources" && siteId) return `/sites/${siteId}/log-sources`;
+  if (view === "errors" && siteId) return `/sites/${siteId}/errors`;
   if (view === "wizard") return `/wizard/${step}`;
   return "/";
 }
@@ -121,7 +134,7 @@ export default function App() {
       setView(route.view);
       setCurrentStep(route.step);
       setSelectedSiteId(route.siteId);
-      if (route.view !== "site-detail") {
+      if (route.view !== "site-detail" && route.view !== "log-sources" && route.view !== "errors") {
         setSelectedSite(null);
       }
     };
@@ -224,12 +237,15 @@ export default function App() {
     setSelectedSiteId(null);
   }, []);
 
-  // Navigate to log sources page
-  const handleViewLogSources = useCallback((site: Site) => {
-    setSelectedSite(site);
-    setSelectedSiteId(site.id);
+  const handleViewLogSources = useCallback(() => {
+    if (!selectedSite && !selectedSiteId) return;
     setView("log-sources");
-  }, []);
+  }, [selectedSite, selectedSiteId]);
+
+  const handleViewErrors = useCallback(() => {
+    if (!selectedSite && !selectedSiteId) return;
+    setView("errors");
+  }, [selectedSite, selectedSiteId]);
 
   // Navigation handler for dashboard layout
   const handleNavigate = useCallback((path: string) => {
@@ -331,17 +347,17 @@ export default function App() {
         <SiteDashboardPage
           site={selectedSite}
           onBack={handleBackToDashboard}
-          onViewLogSources={() => handleViewLogSources(selectedSite)}
+          onViewLogSources={handleViewLogSources}
+          onViewErrors={handleViewErrors}
         />
       )}
 
       {view === "log-sources" && selectedSite && (
-        <LogSourcesPage
-          site={selectedSite}
-          onBack={() => {
-            setView("site-detail");
-          }}
-        />
+        <LogSourcesPage site={selectedSite} onBack={() => setView("site-detail")} />
+      )}
+
+      {view === "errors" && selectedSite && (
+        <ErrorsPage site={selectedSite} onBack={() => setView("site-detail")} />
       )}
 
       {view === "settings" && (

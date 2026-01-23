@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "../components/Button";
 import { Card, CardHeader } from "../components/Card";
+import { useUserSettings } from "../utils/settings";
 import styles from "./SettingsPage.module.css";
 
 type OllamaModel = {
@@ -22,10 +23,20 @@ export function SettingsPage({ onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [pullProgress, setPullProgress] = useState<string>("");
 
+  const { settings, updateSettings } = useUserSettings();
+  const [hiddenIpsText, setHiddenIpsText] = useState<string>("");
+  const [publicIp, setPublicIp] = useState<string | null>(null);
+  const [isDetectingIp, setIsDetectingIp] = useState(false);
+  const [ipError, setIpError] = useState<string | null>(null);
+
   useEffect(() => {
     loadModels();
     loadSelectedModel();
   }, []);
+
+  useEffect(() => {
+    setHiddenIpsText(settings.hiddenIps.join("\n"));
+  }, [settings.hiddenIps]);
 
   async function loadModels() {
     setIsLoading(true);
@@ -123,6 +134,43 @@ export function SettingsPage({ onBack }: Props) {
       setSelectedModel(modelName);
     } catch (err) {
       setError((err as Error).message);
+    }
+  }
+
+  function normalizeIps(text: string): string[] {
+    return Array.from(
+      new Set(
+        text
+          .split(/[\n,]+/)
+          .map((ip) => ip.trim())
+          .filter(Boolean)
+      )
+    );
+  }
+
+  function handleSaveHiddenIps() {
+    updateSettings({ hiddenIps: normalizeIps(hiddenIpsText) });
+  }
+
+  function handleAddDetectedIp() {
+    if (!publicIp) return;
+    const next = normalizeIps(`${hiddenIpsText}\n${publicIp}`);
+    updateSettings({ hiddenIps: next });
+  }
+
+  async function handleDetectPublicIp() {
+    setIsDetectingIp(true);
+    setIpError(null);
+    try {
+      const response = await fetch("https://api.ipify.org?format=json");
+      if (!response.ok) throw new Error("Failed to detect public IP");
+      const data = (await response.json()) as { ip?: string };
+      if (!data.ip) throw new Error("No IP returned");
+      setPublicIp(data.ip);
+    } catch (err) {
+      setIpError((err as Error).message);
+    } finally {
+      setIsDetectingIp(false);
     }
   }
 
@@ -240,6 +288,64 @@ export function SettingsPage({ onBack }: Props) {
               ollama.com/library
             </a>
           </p>
+        </div>
+      </Card>
+
+      <Card className={styles.cardSpacing}>
+        <CardHeader
+          title="Privacy & IP filtering"
+          subtitle="Hide traffic from your own IPs in the dashboard"
+        />
+
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Hidden IP addresses</h3>
+          <p className={styles.sectionDescription}>
+            Add IPs you want excluded from Top IPs and day summaries. One per line or
+            comma-separated.
+          </p>
+          <textarea
+            className={styles.textarea}
+            rows={5}
+            value={hiddenIpsText}
+            onChange={(event) => setHiddenIpsText(event.target.value)}
+            placeholder="203.0.113.10\n198.51.100.42"
+          />
+          <div className={styles.actionsRow}>
+            <Button size="sm" variant="secondary" onClick={handleSaveHiddenIps}>
+              Save hidden IPs
+            </Button>
+            {settings.hiddenIps.length > 0 && (
+              <span className={styles.helperText}>
+                {settings.hiddenIps.length} IP{settings.hiddenIps.length === 1 ? "" : "s"} hidden
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.divider} />
+
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Detect your public IP</h3>
+          <p className={styles.sectionDescription}>
+            Use this to discover your current public IP, then add it to the hidden list.
+          </p>
+          <div className={styles.actionsRow}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleDetectPublicIp}
+              isLoading={isDetectingIp}
+            >
+              Detect public IP
+            </Button>
+            {publicIp && <span className={styles.publicIp}>{publicIp}</span>}
+            {publicIp && (
+              <Button size="sm" onClick={handleAddDetectedIp}>
+                Add to hidden list
+              </Button>
+            )}
+          </div>
+          {ipError && <div className={styles.inlineError}>{ipError}</div>}
         </div>
       </Card>
     </div>

@@ -1,6 +1,7 @@
 """SQLAlchemy models for Logamizer."""
 
 from apps.api.models.aggregate import Aggregate
+from apps.api.models.error_log import ErrorGroup, ErrorOccurrence
 from apps.api.models.finding import Finding
 from apps.api.models.job import Job
 from apps.api.models.log_file import LogFile
@@ -16,4 +17,6 @@ __all__ = [
     "Finding",
     "Aggregate",
     "LogSource",
+    "ErrorGroup",
+    "ErrorOccurrence",
 ]

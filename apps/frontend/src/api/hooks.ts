@@ -1,6 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, getStoredToken } from "./client";
-import type { DashboardResponse, Finding, Site, VerifyFindingResponse, LogSource, LogSourceCreate, LogSourceUpdate } from "../types";
+import type {
+  DashboardResponse,
+  ErrorGroup,
+  ErrorGroupWithOccurrences,
+  ErrorGroupsListResponse,
+  ErrorGroupExplainResponse,
+  ErrorStatsResponse,
+  Finding,
+  LogFileListResponse,
+  LogSource,
+  LogSourceListResponse,
+  Site,
+  VerifyFindingResponse,
+} from "../types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Job } from "../types";
 
@@ -212,22 +225,146 @@ export function useVerifyFinding() {
   });
 }
 
-// Log Sources
-export function useLogSources(siteId: string) {
+export function useErrorGroups(
+  siteId?: string,
+  status?: string | null,
+  errorType?: string | null,
+  limit = 50,
+  offset = 0
+) {
+  const token = getStoredToken();
   return useQuery({
-    queryKey: ["log-sources", siteId],
-    queryFn: () =>
-      apiFetch<{ log_sources: LogSource[]; total: number }>(
-        `/api/sites/${siteId}/log-sources`
-      ),
-    enabled: !!siteId,
+    queryKey: ["error-groups", siteId, status, errorType, limit, offset],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (status) params.append("status", status);
+      if (errorType) params.append("error_type", errorType);
+      if (limit) params.append("limit", String(limit));
+      if (offset) params.append("offset", String(offset));
+      const queryString = params.toString();
+      return apiFetch<ErrorGroupsListResponse>(
+        `/api/sites/${siteId}/errors/groups${queryString ? `?${queryString}` : ""}`
+      );
+    },
+    enabled: Boolean(siteId && token),
   });
 }
+
+export function useErrorGroup(siteId?: string, groupId?: string, limit = 10) {
+  const token = getStoredToken();
+  return useQuery({
+    queryKey: ["error-group", siteId, groupId, limit],
+    queryFn: () =>
+      apiFetch<ErrorGroupWithOccurrences>(
+        `/api/sites/${siteId}/errors/groups/${groupId}?limit=${limit}`
+      ),
+    enabled: Boolean(siteId && groupId && token),
+  });
+}
+
+export function useErrorStats(siteId?: string) {
+  const token = getStoredToken();
+  return useQuery({
+    queryKey: ["error-stats", siteId],
+    queryFn: () => apiFetch<ErrorStatsResponse>(`/api/sites/${siteId}/errors/stats`),
+    enabled: Boolean(siteId && token),
+  });
+}
+
+export function useUpdateErrorGroup(siteId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      groupId,
+      status,
+      deploymentId,
+    }: {
+      groupId: string;
+      status: string;
+      deploymentId?: string | null;
+    }) =>
+      apiFetch<ErrorGroup>(`/api/sites/${siteId}/errors/groups/${groupId}`, {
+        method: "PUT",
+        body: JSON.stringify({ status, deployment_id: deploymentId ?? null }),
+      }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["error-groups", siteId] });
+      queryClient.invalidateQueries({ queryKey: ["error-stats", siteId] });
+      queryClient.invalidateQueries({
+        queryKey: ["error-group", siteId, variables.groupId],
+      });
+    },
+  });
+}
+
+export function useExplainErrorGroup(siteId: string) {
+  return useMutation({
+    mutationFn: ({ groupId }: { groupId: string }) =>
+      apiFetch<ErrorGroupExplainResponse>(
+        `/api/sites/${siteId}/errors/groups/${groupId}/explain`,
+        { method: "POST" }
+      ),
+  });
+}
+
+export function useLogFiles(siteId?: string) {
+  const token = getStoredToken();
+  return useQuery({
+    queryKey: ["log-files", siteId],
+    queryFn: () => apiFetch<LogFileListResponse>(`/api/sites/${siteId}/log-files`),
+    enabled: Boolean(siteId && token),
+  });
+}
+
+export function useAnalyzeErrors(siteId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      logFileId,
+      logFormat,
+    }: {
+      logFileId: string;
+      logFormat?: string;
+    }) =>
+      apiFetch<{ success: boolean; message: string; task_id?: string }>(
+        `/api/sites/${siteId}/errors/analyze`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            log_file_id: logFileId,
+            log_format: logFormat ?? "auto",
+          }),
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["error-groups", siteId] });
+      queryClient.invalidateQueries({ queryKey: ["error-stats", siteId] });
+    },
+  });
+}
+
+export function useLogSources(siteId?: string) {
+  const token = getStoredToken();
+  return useQuery({
+    queryKey: ["log-sources", siteId],
+    queryFn: () => apiFetch<LogSourceListResponse>(`/api/sites/${siteId}/log-sources`),
+    enabled: Boolean(siteId && token),
+  });
+}
+
+type LogSourceInput = {
+  name: string;
+  source_type: string;
+  connection_config: Record<string, unknown>;
+  schedule_type: string;
+  schedule_config: Record<string, unknown>;
+};
 
 export function useCreateLogSource(siteId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: LogSourceCreate) =>
+    mutationFn: (data: LogSourceInput) =>
       apiFetch<LogSource>(`/api/sites/${siteId}/log-sources`, {
         method: "POST",
         body: JSON.stringify(data),
@@ -238,10 +375,14 @@ export function useCreateLogSource(siteId: string) {
   });
 }
 
+type LogSourceUpdateInput = Partial<LogSourceInput> & {
+  status?: string;
+};
+
 export function useUpdateLogSource(siteId: string, logSourceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: LogSourceUpdate) =>
+    mutationFn: (data: LogSourceUpdateInput) =>
       apiFetch<LogSource>(`/api/sites/${siteId}/log-sources/${logSourceId}`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -256,7 +397,7 @@ export function useDeleteLogSource(siteId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (logSourceId: string) =>
-      apiFetch(`/api/sites/${siteId}/log-sources/${logSourceId}`, {
+      apiFetch<void>(`/api/sites/${siteId}/log-sources/${logSourceId}`, {
         method: "DELETE",
       }),
     onSuccess: () => {
@@ -265,22 +406,10 @@ export function useDeleteLogSource(siteId: string) {
   });
 }
 
-export function useTestLogSource(siteId: string, logSourceId: string) {
-  return useMutation({
-    mutationFn: () =>
-      apiFetch<{ message: string; task_id: string }>(
-        `/api/sites/${siteId}/log-sources/${logSourceId}/test`,
-        {
-          method: "POST",
-        }
-      ),
-  });
-}
-
-export function useFetchNow(siteId: string, logSourceId: string) {
+export function useFetchNow(siteId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () =>
+    mutationFn: ({ logSourceId }: { logSourceId: string }) =>
       apiFetch<{ message: string; log_source_id: string; task_id: string }>(
         `/api/sites/${siteId}/log-sources/${logSourceId}/fetch-now`,
         {

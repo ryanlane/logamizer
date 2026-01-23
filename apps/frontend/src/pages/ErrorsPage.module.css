@@ -1,0 +1,272 @@
+.container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.backButton:hover {
+  background-color: var(--background-hover);
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+
+.titleSection {
+  flex: 1;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.statLabel {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.statValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.filters {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.empty {
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.empty svg {
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.emptyActions {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.emptyHint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.errorList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.errorCard {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--background);
+  transition: all 0.2s;
+}
+
+.errorCard:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.errorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.errorTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.errorBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.severityCritical {
+  background-color: #fee;
+  color: #c33;
+}
+
+.severityHigh {
+  background-color: #fef3cd;
+  color: #856404;
+}
+
+.severityMedium {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.severityLow {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.errorType {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+}
+
+.statusBadge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.statusResolved {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.statusIgnored {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
+.errorMeta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.errorTime {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.errorMessage {
+  font-size: 0.875rem;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+  font-family: 'Courier New', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sampleRequest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.sampleLabel {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sampleValue {
+  font-family: 'Courier New', monospace;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.sampleIp {
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+}
+
+.errorFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.errorDate {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.errorActions {
+  display: flex;
+  gap: 0.5rem;
+}

@@ -40,6 +40,45 @@ export type DashboardResponse = {
   recent_uploads: { id: string; filename: string; status: string; created_at: string | null }[];
 };
 
+export type LogFile = {
+  id: string;
+  site_id: string;
+  filename: string;
+  size_bytes: number | null;
+  hash_sha256: string | null;
+  storage_key: string;
+  status: string;
+  created_at: string;
+  uploaded_at: string | null;
+};
+
+export type LogFileListResponse = {
+  log_files: LogFile[];
+  total: number;
+};
+
+export type LogSource = {
+  id: string;
+  site_id: string;
+  name: string;
+  source_type: string;
+  status: string;
+  connection_config: Record<string, unknown>;
+  schedule_type: string;
+  schedule_config: Record<string, unknown>;
+  last_fetch_at: string | null;
+  last_fetch_status: string | null;
+  last_fetch_error: string | null;
+  last_fetched_bytes: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LogSourceListResponse = {
+  log_sources: LogSource[];
+  total: number;
+};
+
 export type Finding = {
   id: string;
   finding_type: string;
@@ -76,35 +115,65 @@ export type Job = {
   completed_at: string | null;
 };
 
-export type LogSource = {
+export type ErrorOccurrence = {
+  id: string;
+  error_group_id: string;
+  log_file_id: string | null;
+  timestamp: string;
+  error_type: string;
+  error_message: string;
+  stack_trace: string | null;
+  file_path: string | null;
+  line_number: number | null;
+  function_name: string | null;
+  request_url: string | null;
+  request_method: string | null;
+  user_id: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  context: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export type ErrorGroup = {
   id: string;
   site_id: string;
-  name: string;
-  source_type: "ssh" | "sftp" | "s3" | "gcs" | "http";
-  status: "active" | "paused" | "error";
-  connection_config: Record<string, any>;
-  schedule_type: "interval" | "cron";
-  schedule_config: Record<string, any>;
-  last_fetch_at: string | null;
-  last_fetch_status: string | null;
-  last_fetch_error: string | null;
-  last_fetched_bytes: number | null;
-  created_at: string;
-  updated_at: string;
+  fingerprint: string;
+  error_type: string;
+  error_message: string;
+  first_seen: string;
+  last_seen: string;
+  occurrence_count: number;
+  status: string;
+  resolved_at: string | null;
+  deployment_id: string | null;
+  metadata_json: Record<string, unknown> | null;
+  sample_request_url?: string | null;
+  sample_ip_address?: string | null;
+  sample_request_urls?: string[] | null;
 };
 
-export type LogSourceCreate = {
-  name: string;
-  source_type: string;
-  connection_config: Record<string, any>;
-  schedule_type: string;
-  schedule_config: Record<string, any>;
+export type ErrorGroupWithOccurrences = ErrorGroup & {
+  recent_occurrences: ErrorOccurrence[];
 };
 
-export type LogSourceUpdate = {
-  name?: string;
-  status?: string;
-  connection_config?: Record<string, any>;
-  schedule_type?: string;
-  schedule_config?: Record<string, any>;
+export type ErrorGroupsListResponse = {
+  error_groups: ErrorGroup[];
+  total: number;
+  unresolved: number;
+  resolved: number;
+  ignored: number;
+};
+
+export type ErrorStatsResponse = {
+  total_errors: number;
+  total_groups: number;
+  errors_24h: number;
+  errors_7d: number;
+  top_error_types: { error_type: string; count: number }[];
+  error_trend: { hour: string; count: number }[];
+};
+
+export type ErrorGroupExplainResponse = {
+  explanation: string;
 };

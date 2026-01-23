@@ -15,6 +15,7 @@ import { OverviewPanel } from "../components/OverviewPanel";
 import { FileUpload } from "../components/FileUpload";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { uploadFileToS3, useGetUploadUrl, useConfirmUpload, useJob } from "../api/hooks";
+import { useUserSettings } from "../utils/settings";
 import type { Site, Finding, VerifyFindingResponse } from "../types";
 import styles from "./SiteDashboardPage.module.css";
 import inputStyles from "../components/Input.module.css";
@@ -23,11 +24,12 @@ type Props = {
   site: Site;
   onBack: () => void;
   onViewLogSources?: () => void;
+  onViewErrors?: () => void;
 };
 
 type UploadState = "idle" | "uploading" | "processing" | "complete" | "error";
 
-export function SiteDashboardPage({ site, onBack, onViewLogSources }: Props) {
+export function SiteDashboardPage({ site, onBack, onViewLogSources, onViewErrors }: Props) {
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
 
@@ -47,6 +49,12 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources }: Props) {
   const explainFinding = useExplainFinding();
   const explainOverview = useExplain();
   const verifyFinding = useVerifyFinding();
+
+  const { settings } = useUserSettings();
+  const hiddenIps = useMemo(
+    () => new Set(settings.hiddenIps.map((ip) => ip.trim()).filter(Boolean)),
+    [settings.hiddenIps]
+  );
 
   const [daySummary, setDaySummary] = useState<string | null>(null);
   const [daySummaryError, setDaySummaryError] = useState<string | null>(null);
@@ -104,6 +112,16 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources }: Props) {
       .slice(0, 10)
       .map(([ip, count]) => ({ ip, count }));
   }, [activeDayKey, dayAggregates]);
+
+  const filteredDayTopIps = useMemo(() => {
+    if (!dayTopIps) return undefined;
+    return dayTopIps.filter((item) => !hiddenIps.has(item.ip));
+  }, [dayTopIps, hiddenIps]);
+
+  const filteredSummaryTopIps = useMemo(() => {
+    if (!dashboard?.summary.top_ips) return [];
+    return dashboard.summary.top_ips.filter((item) => !hiddenIps.has(item.ip));
+  }, [dashboard?.summary.top_ips, hiddenIps]);
 
   const dayTotals = useMemo(() => {
     if (!activeDayKey) return null;
@@ -185,7 +203,7 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources }: Props) {
       .slice(0, 5)
       .map((item) => `${item.path} (${item.count})`)
       .join(", ");
-    const topIpsText = (dayTopIps ?? [])
+    const topIpsText = (filteredDayTopIps ?? [])
       .slice(0, 5)
       .map((item) => `${item.ip} (${item.count})`)
       .join(", ");
@@ -313,6 +331,11 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources }: Props) {
               Log Sources
             </Button>
           )}
+          {onViewErrors && (
+            <Button variant="secondary" onClick={onViewErrors}>
+              Error analysis
+            </Button>
+          )}
           <Button onClick={() => setIsUploadMode(!isUploadMode)}>
             {isUploadMode ? "Cancel upload" : "Upload more logs"}
           </Button>
@@ -393,7 +416,7 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources }: Props) {
           <OverviewPanel
             summary={dashboard.summary}
             topPaths={activeDayKey ? dayTopPaths : undefined}
-            topIps={activeDayKey ? dayTopIps : undefined}
+            topIps={activeDayKey ? filteredDayTopIps : filteredSummaryTopIps}
             filterLabel={activeDayKey ? dayLabel : null}
           />
         </Card>

@@ -16,6 +16,7 @@ celery_app = Celery(
         "apps.worker.tasks.parse",
         "apps.worker.tasks.fetch",
         "apps.worker.tasks.scheduler",
+        "apps.worker.tasks.error_analysis",
     ],
 )
 

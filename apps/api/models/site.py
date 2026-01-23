@@ -82,6 +82,11 @@ class Site(Base):
         back_populates="site",
         cascade="all, delete-orphan",
     )
+    error_groups: Mapped[list["ErrorGroup"]] = relationship(  # noqa: F821
+        "ErrorGroup",
+        back_populates="site",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Site {self.name}>"

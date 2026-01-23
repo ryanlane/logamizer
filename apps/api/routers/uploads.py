@@ -20,6 +20,7 @@ from apps.api.schemas.log_file import (
 )
 from apps.api.services.storage import StorageService
 from apps.worker.celery_app import celery_app
+from apps.worker.tasks.error_analysis import analyze_errors_in_log_file
 from packages.shared.constants import PRESIGNED_URL_EXPIRY
 from packages.shared.enums import JobStatus, JobType, LogFileStatus
 
@@ -147,6 +148,8 @@ async def confirm_upload(
     )
     job.celery_task_id = task.id
     await db.commit()
+
+    analyze_errors_in_log_file.delay(log_file.id, "auto")
 
     return JobResponse.model_validate(job)
 
