@@ -32,7 +32,22 @@
   padding: 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 20px;
+}
+
+.navSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.navSectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 8px;
 }
 
 .navItem,
@@ -53,6 +68,78 @@
   text-align: left;
 }
 
+.siteList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 4px;
+}
+
+.siteItem,
+.siteItemActive {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.siteItem:hover {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.siteItemActive {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.activeSiteName {
+  font-weight: 600;
+  color: var(--color-text);
+  padding: 0 8px;
+}
+
+.subNavList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 8px;
+}
+
+.subNavItem,
+.subNavItemActive {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.subNavItem:hover {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.subNavItemActive {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
 .navItem:hover {
   background: var(--color-background);
   color: var(--color-text);
@@ -66,6 +153,9 @@
 .sidebarFooter {
   padding: 16px 12px;
   border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .logoutButton {

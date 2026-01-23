@@ -8,6 +8,7 @@ from celery import shared_task
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from apps.api.config import get_settings
 from apps.api.models.error_log import ErrorGroup, ErrorOccurrence
@@ -27,7 +28,7 @@ def _get_session_maker() -> sessionmaker:
     global _engine, _engine_pid, _async_session_maker
     pid = os.getpid()
     if _engine is None or _engine_pid != pid:
-        _engine = create_async_engine(settings.database_url)
+        _engine = create_async_engine(settings.database_url, poolclass=NullPool)
         _async_session_maker = sessionmaker(
             _engine, class_=AsyncSession, expire_on_commit=False
         )

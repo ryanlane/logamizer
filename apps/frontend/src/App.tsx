@@ -7,6 +7,8 @@ import { SiteListPage } from "./pages/SiteListPage";
 import { SiteDashboardPage } from "./pages/SiteDashboardPage";
 import { LogSourcesPage } from "./pages/LogSourcesPage";
 import { ErrorsPage } from "./pages/ErrorsPage";
+import { SecurityFindingsPage } from "./pages/SecurityFindingsPage";
+import { AnomalyHighlightsPage } from "./pages/AnomalyHighlightsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { Stepper, type Step } from "./components/Stepper";
 import { WelcomeStep } from "./components/steps/WelcomeStep";
@@ -28,6 +30,8 @@ type AppView =
   | "dashboard"
   | "wizard"
   | "site-detail"
+  | "findings"
+  | "anomalies"
   | "log-sources"
   | "errors"
   | "settings";
@@ -44,10 +48,7 @@ function parseRoute(pathname: string, isAuthed: boolean): RouteState {
   }
 
   if (pathname.startsWith("/settings")) {
-    // Support /settings or /settings/{siteId}
-    const parts = pathname.split("/").filter(Boolean);
-    const siteId = parts[1] ?? null;
-    return { view: "settings", step: "welcome", siteId };
+    return { view: "settings", step: "welcome", siteId: null };
   }
 
   if (pathname.startsWith("/sites/")) {
@@ -61,6 +62,14 @@ function parseRoute(pathname: string, isAuthed: boolean): RouteState {
 
     if (subRoute === "errors") {
       return { view: "errors", step: "welcome", siteId };
+    }
+
+    if (subRoute === "findings") {
+      return { view: "findings", step: "welcome", siteId };
+    }
+
+    if (subRoute === "anomalies") {
+      return { view: "anomalies", step: "welcome", siteId };
     }
 
     return { view: "site-detail", step: "welcome", siteId };
@@ -83,8 +92,10 @@ function parseRoute(pathname: string, isAuthed: boolean): RouteState {
 
 function buildPath(view: AppView, step: WizardStep, siteId: string | null): string {
   if (view === "login") return "/login";
-  if (view === "settings") return siteId ? `/settings/${siteId}` : "/settings";
+  if (view === "settings") return "/settings";
   if (view === "site-detail" && siteId) return `/sites/${siteId}`;
+  if (view === "findings" && siteId) return `/sites/${siteId}/findings`;
+  if (view === "anomalies" && siteId) return `/sites/${siteId}/anomalies`;
   if (view === "log-sources" && siteId) return `/sites/${siteId}/log-sources`;
   if (view === "errors" && siteId) return `/sites/${siteId}/errors`;
   if (view === "wizard") return `/wizard/${step}`;
@@ -99,6 +110,16 @@ export default function App() {
   const [view, setView] = useState<AppView>(() => initialRoute.view);
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(() => initialRoute.siteId);
+  const [recentSiteIds, setRecentSiteIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem("logamizer-recent-sites");
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as string[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Wizard state (only used when in wizard mode)
   const [currentStep, setCurrentStep] = useState<WizardStep>(() => initialRoute.step);
@@ -126,6 +147,15 @@ export default function App() {
   }, [selectedSiteId, selectedSite, sites]);
 
   useEffect(() => {
+    if (!selectedSiteId) return;
+    setRecentSiteIds((prev) => {
+      const next = [selectedSiteId, ...prev.filter((id) => id !== selectedSiteId)].slice(0, 5);
+      localStorage.setItem("logamizer-recent-sites", JSON.stringify(next));
+      return next;
+    });
+  }, [selectedSiteId]);
+
+  useEffect(() => {
     if (view === "wizard" && !selectedSite && (currentStep === "upload" || currentStep === "results")) {
       setCurrentStep("site");
     }
@@ -137,7 +167,13 @@ export default function App() {
       setView(route.view);
       setCurrentStep(route.step);
       setSelectedSiteId(route.siteId);
-      if (route.view !== "site-detail" && route.view !== "log-sources" && route.view !== "errors") {
+      if (
+        route.view !== "site-detail" &&
+        route.view !== "log-sources" &&
+        route.view !== "errors" &&
+        route.view !== "findings" &&
+        route.view !== "anomalies"
+      ) {
         setSelectedSite(null);
       }
     };
@@ -250,15 +286,30 @@ export default function App() {
     setView("errors");
   }, [selectedSite, selectedSiteId]);
 
+  const handleViewFindings = useCallback(() => {
+    if (!selectedSite && !selectedSiteId) return;
+    setView("findings");
+  }, [selectedSite, selectedSiteId]);
+
+  const handleViewAnomalies = useCallback(() => {
+    if (!selectedSite && !selectedSiteId) return;
+    setView("anomalies");
+  }, [selectedSite, selectedSiteId]);
+
   // Navigation handler for dashboard layout
   const handleNavigate = useCallback((path: string) => {
-    if (path === "/") {
-      setView("dashboard");
+    const route = parseRoute(path, true);
+    setView(route.view);
+    setCurrentStep(route.step);
+    setSelectedSiteId(route.siteId);
+    if (
+      route.view !== "site-detail" &&
+      route.view !== "log-sources" &&
+      route.view !== "errors" &&
+      route.view !== "findings" &&
+      route.view !== "anomalies"
+    ) {
       setSelectedSite(null);
-      setSelectedSiteId(null);
-    } else if (path === "/settings") {
-      setView("settings");
-      // Keep selectedSite and selectedSiteId when going to settings
     }
   }, []);
 
@@ -337,10 +388,16 @@ export default function App() {
   }
 
   // Render dashboard or site detail view
-  const currentPath = view === "settings" ? "/settings" : "/";
+  const currentPath = buildPath(view, currentStep, selectedSiteId);
 
   return (
-    <DashboardLayout onNavigate={handleNavigate} currentPath={currentPath}>
+    <DashboardLayout
+      onNavigate={handleNavigate}
+      currentPath={currentPath}
+      sites={sites}
+      activeSiteId={selectedSiteId}
+      recentSiteIds={recentSiteIds}
+    >
       {view === "dashboard" && (
         <SiteListPage onSelectSite={handleViewSite} onCreateNew={handleCreateNewSite} />
       )}
@@ -351,7 +408,17 @@ export default function App() {
           onBack={handleBackToDashboard}
           onViewLogSources={handleViewLogSources}
           onViewErrors={handleViewErrors}
+          onViewFindings={handleViewFindings}
+          onViewAnomalies={handleViewAnomalies}
         />
+      )}
+
+      {view === "findings" && selectedSite && (
+        <SecurityFindingsPage site={selectedSite} onBack={() => setView("site-detail")} />
+      )}
+
+      {view === "anomalies" && selectedSite && (
+        <AnomalyHighlightsPage site={selectedSite} onBack={() => setView("site-detail")} />
       )}
 
       {view === "log-sources" && selectedSite && (
@@ -363,16 +430,7 @@ export default function App() {
       )}
 
       {view === "settings" && (
-        <SettingsPage
-          onBack={() => {
-            if (selectedSite || selectedSiteId) {
-              setView("site-detail");
-            } else {
-              setView("dashboard");
-            }
-          }}
-          siteId={selectedSiteId}
-        />
+        <SettingsPage onBack={() => setView("dashboard")} />
       )}
     </DashboardLayout>
   );

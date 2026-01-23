@@ -1,18 +1,43 @@
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
 import { clearAuth } from "../api/client";
+import type { Site } from "../types";
 import styles from "./DashboardLayout.module.css";
 
 type Props = {
   children: ReactNode;
   onNavigate?: (path: string) => void;
   currentPath?: string;
+  sites?: Site[];
+  activeSiteId?: string | null;
+  recentSiteIds?: string[];
 };
 
-export function DashboardLayout({ children, onNavigate, currentPath = "/" }: Props) {
+export function DashboardLayout({
+  children,
+  onNavigate,
+  currentPath = "/",
+  sites = [],
+  activeSiteId,
+  recentSiteIds = [],
+}: Props) {
   function handleLogout() {
     clearAuth();
     window.location.href = "/";
   }
+
+  const activeSite = useMemo(
+    () => sites.find((site) => site.id === activeSiteId) ?? null,
+    [sites, activeSiteId]
+  );
+
+  const visibleSites = useMemo(() => {
+    if (sites.length <= 5) return sites;
+    const recent = recentSiteIds
+      .map((id) => sites.find((site) => site.id === id))
+      .filter((site): site is Site => Boolean(site));
+    if (recent.length > 0) return recent.slice(0, 5);
+    return sites.slice(0, 5);
+  }, [sites, recentSiteIds]);
 
   return (
     <div className={styles.layout}>
@@ -34,18 +59,96 @@ export function DashboardLayout({ children, onNavigate, currentPath = "/" }: Pro
         </div>
 
         <nav className={styles.nav}>
-          <button
-            className={currentPath === "/" ? styles.navItemActive : styles.navItem}
-            onClick={() => onNavigate?.("/")}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="7" />
-              <rect x="14" y="3" width="7" height="7" />
-              <rect x="14" y="14" width="7" height="7" />
-              <rect x="3" y="14" width="7" height="7" />
-            </svg>
-            <span>Sites</span>
-          </button>
+          <div className={styles.navSection}>
+            <div className={styles.navSectionTitle}>Sites</div>
+            <button
+              className={currentPath === "/" ? styles.navItemActive : styles.navItem}
+              onClick={() => onNavigate?.("/")}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
+              <span>All sites</span>
+            </button>
+            <div className={styles.siteList}>
+              {visibleSites.map((site) => (
+                <button
+                  key={site.id}
+                  className={
+                    activeSiteId === site.id ? styles.siteItemActive : styles.siteItem
+                  }
+                  onClick={() => onNavigate?.(`/sites/${site.id}`)}
+                >
+                  <span>{site.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {activeSite && (
+            <div className={styles.navSection}>
+              <div className={styles.navSectionTitle}>Active site</div>
+              <div className={styles.activeSiteName}>{activeSite.name}</div>
+              <div className={styles.subNavList}>
+                <button
+                  className={
+                    currentPath === `/sites/${activeSite.id}`
+                      ? styles.subNavItemActive
+                      : styles.subNavItem
+                  }
+                  onClick={() => onNavigate?.(`/sites/${activeSite.id}`)}
+                >
+                  Dashboard
+                </button>
+                <button
+                  className={
+                    currentPath === `/sites/${activeSite.id}/findings`
+                      ? styles.subNavItemActive
+                      : styles.subNavItem
+                  }
+                  onClick={() => onNavigate?.(`/sites/${activeSite.id}/findings`)}
+                >
+                  Security findings
+                </button>
+                <button
+                  className={
+                    currentPath === `/sites/${activeSite.id}/anomalies`
+                      ? styles.subNavItemActive
+                      : styles.subNavItem
+                  }
+                  onClick={() => onNavigate?.(`/sites/${activeSite.id}/anomalies`)}
+                >
+                  Anomaly highlights
+                </button>
+                <button
+                  className={
+                    currentPath === `/sites/${activeSite.id}/errors`
+                      ? styles.subNavItemActive
+                      : styles.subNavItem
+                  }
+                  onClick={() => onNavigate?.(`/sites/${activeSite.id}/errors`)}
+                >
+                  Error analysis
+                </button>
+                <button
+                  className={
+                    currentPath === `/sites/${activeSite.id}/log-sources`
+                      ? styles.subNavItemActive
+                      : styles.subNavItem
+                  }
+                  onClick={() => onNavigate?.(`/sites/${activeSite.id}/log-sources`)}
+                >
+                  Sources
+                </button>
+              </div>
+            </div>
+          )}
+        </nav>
+
+        <div className={styles.sidebarFooter}>
           <button
             className={currentPath === "/settings" ? styles.navItemActive : styles.navItem}
             onClick={() => onNavigate?.("/settings")}
@@ -55,9 +158,6 @@ export function DashboardLayout({ children, onNavigate, currentPath = "/" }: Pro
             </svg>
             <span>Settings</span>
           </button>
-        </nav>
-
-        <div className={styles.sidebarFooter}>
           <button className={styles.logoutButton} onClick={handleLogout}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />

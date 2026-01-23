@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useDashboard, useExplain, useFindings, useExplainFinding, useVerifyFinding } from "../api/hooks";
+import { useDashboard, useExplain } from "../api/hooks";
 import { Button } from "../components/Button";
 import { Card, CardHeader } from "../components/Card";
 import { SummaryCards } from "../components/SummaryCards";
@@ -9,34 +9,37 @@ import { ErrorRateChart } from "../components/ErrorRateChart";
 import { BandwidthChart } from "../components/BandwidthChart";
 import { TopUserAgentsChart } from "../components/TopUserAgentsChart";
 import { TopStatusCodesChart } from "../components/TopStatusCodesChart";
-import { FindingsList } from "../components/FindingsList";
-import { FindingDetailModal } from "../components/FindingDetailModal";
 import { OverviewPanel } from "../components/OverviewPanel";
 import { FileUpload } from "../components/FileUpload";
 import { DateRangePicker } from "../components/DateRangePicker";
 import { uploadFileToS3, useGetUploadUrl, useConfirmUpload, useJob } from "../api/hooks";
 import { useUserSettings } from "../utils/settings";
-import type { Site, Finding, VerifyFindingResponse } from "../types";
+import type { Site } from "../types";
 import styles from "./SiteDashboardPage.module.css";
-import inputStyles from "../components/Input.module.css";
 
 type Props = {
   site: Site;
   onBack: () => void;
   onViewLogSources?: () => void;
   onViewErrors?: () => void;
+  onViewFindings?: () => void;
+  onViewAnomalies?: () => void;
 };
 
 type UploadState = "idle" | "uploading" | "processing" | "complete" | "error";
 
-export function SiteDashboardPage({ site, onBack, onViewLogSources, onViewErrors }: Props) {
+export function SiteDashboardPage({
+  site,
+  onBack,
+  onViewLogSources,
+  onViewErrors,
+  onViewFindings,
+  onViewAnomalies,
+}: Props) {
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
 
   const { data: dashboard, isLoading, error } = useDashboard(site.id, startDate, endDate);
-  const [severityFilter, setSeverityFilter] = useState<string | null>(null);
-  const { data: findingsData } = useFindings(site.id, startDate, endDate, severityFilter);
-  const findings = findingsData?.findings ?? [];
 
   const [isUploadMode, setIsUploadMode] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -44,11 +47,7 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources, onViewErrors
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
-  const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
-
-  const explainFinding = useExplainFinding();
   const explainOverview = useExplain();
-  const verifyFinding = useVerifyFinding();
 
   const { settings } = useUserSettings();
   const hiddenIps = useMemo(
@@ -174,110 +173,6 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources, onViewErrors
       .map(([status, count]) => ({ status, count }));
   }, [activeAggregates]);
 
-  const anomalyHighlights = useMemo(() => {
-    if (!activeAggregates.length) return [];
-
-    const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
-    const stddev = (values: number[], avg: number) => {
-      const variance = values.reduce((sum, value) => sum + Math.pow(value - avg, 2), 0) / values.length;
-      return Math.sqrt(variance);
-    };
-
-    const requestCounts = activeAggregates.map((item) => item.requests_count);
-    const ipCounts = activeAggregates.map((item) => item.unique_ips);
-    const avgRequests = mean(requestCounts);
-    const stdRequests = stddev(requestCounts, avgRequests);
-    const avgIps = mean(ipCounts);
-    const stdIps = stddev(ipCounts, avgIps);
-
-    const highlights: Array<{
-      id: string;
-      title: string;
-      severity: "critical" | "high" | "medium" | "info";
-      summary: string;
-      time: string;
-      actions: string[];
-    }> = [];
-
-    for (const item of activeAggregates) {
-      const hourLabel = new Date(item.hour_bucket).toLocaleString();
-      const requests = item.requests_count;
-      const safeRequests = Math.max(1, requests);
-      const error5xxRate = item.status_5xx / safeRequests;
-      const error4xxRate = item.status_4xx / safeRequests;
-
-      if (requests > avgRequests + 2 * stdRequests && requests > 200) {
-        highlights.push({
-          id: `traffic-${item.hour_bucket}`,
-          title: "Traffic spike",
-          severity: "high",
-          summary: `${requests.toLocaleString()} requests vs baseline ${Math.round(avgRequests).toLocaleString()}.`,
-          time: hourLabel,
-          actions: [
-            "Review top paths for bot traffic",
-            "Add rate limits or WAF rules",
-            "Verify traffic source changes",
-          ],
-        });
-      }
-
-      if (item.status_5xx >= 10 && error5xxRate >= 0.05) {
-        highlights.push({
-          id: `5xx-${item.hour_bucket}`,
-          title: "5xx error spike",
-          severity: "critical",
-          summary: `${item.status_5xx} errors (${Math.round(error5xxRate * 100)}%) during this hour.`,
-          time: hourLabel,
-          actions: [
-            "Check recent deploys or outages",
-            "Inspect error logs for the failing endpoint",
-            "Rollback if regression is confirmed",
-          ],
-        });
-      }
-
-      if (item.status_4xx >= 50 && error4xxRate >= 0.2) {
-        highlights.push({
-          id: `4xx-${item.hour_bucket}`,
-          title: "4xx surge",
-          severity: "medium",
-          summary: `${item.status_4xx} client errors (${Math.round(error4xxRate * 100)}%).`,
-          time: hourLabel,
-          actions: [
-            "Review auth failures or broken links",
-            "Audit top offending paths",
-            "Add validation or improve error handling",
-          ],
-        });
-      }
-
-      if (item.unique_ips > avgIps + 2 * stdIps && item.unique_ips > 50) {
-        highlights.push({
-          id: `ips-${item.hour_bucket}`,
-          title: "Unique IP spike",
-          severity: "info",
-          summary: `${item.unique_ips} unique IPs vs baseline ${Math.round(avgIps)}.`,
-          time: hourLabel,
-          actions: [
-            "Check geo distribution for unusual regions",
-            "Confirm campaign or referral changes",
-            "Add bot mitigation if needed",
-          ],
-        });
-      }
-    }
-
-    const severityRank = {
-      critical: 0,
-      high: 1,
-      medium: 2,
-      info: 3,
-    };
-
-    return highlights
-      .sort((a, b) => severityRank[a.severity] - severityRank[b.severity])
-      .slice(0, 5);
-  }, [activeAggregates]);
 
   useEffect(() => {
     setDaySummary(null);
@@ -287,16 +182,6 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources, onViewErrors
   function handleDateRangeChange(start: string | null, end: string | null) {
     setStartDate(start);
     setEndDate(end);
-  }
-
-  async function handleExplainFinding(findingId: string): Promise<string> {
-    const result = await explainFinding.mutateAsync({ findingId });
-    return result.explanation;
-  }
-
-  async function handleVerifyFinding(findingId: string): Promise<VerifyFindingResponse> {
-    const result = await verifyFinding.mutateAsync({ findingId });
-    return result;
   }
 
   async function handleExplainDay() {
@@ -431,6 +316,16 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources, onViewErrors
             endDate={endDate}
             onDateRangeChange={handleDateRangeChange}
           />
+          {/* {onViewFindings && (
+            <Button variant="secondary" onClick={onViewFindings}>
+              Security findings
+            </Button>
+          )}
+          {onViewAnomalies && (
+            <Button variant="secondary" onClick={onViewAnomalies}>
+              Anomaly highlights
+            </Button>
+          )}
           {onViewLogSources && (
             <Button variant="secondary" onClick={onViewLogSources}>
               Log Sources
@@ -440,7 +335,7 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources, onViewErrors
             <Button variant="secondary" onClick={onViewErrors}>
               Error analysis
             </Button>
-          )}
+          )} */}
           <Button onClick={() => setIsUploadMode(!isUploadMode)}>
             {isUploadMode ? "Cancel upload" : "Upload more logs"}
           </Button>
@@ -553,78 +448,6 @@ export function SiteDashboardPage({ site, onBack, onViewLogSources, onViewErrors
           <TopStatusCodesChart data={topStatusCodes} />
         </Card>
       </div>
-
-      <Card>
-        <CardHeader
-          title="Anomaly highlights"
-          subtitle="Automated deviations with recommended actions"
-        />
-        {anomalyHighlights.length === 0 ? (
-          <div className={styles.anomalyEmpty}>
-            No anomalies detected in the selected time range.
-          </div>
-        ) : (
-          <div className={styles.anomalyList}>
-            {anomalyHighlights.map((item, index) => (
-              <div key={`${item.id}-${index}`} className={styles.anomalyItem}>
-                <div className={styles.anomalyHeader}>
-                  <div>
-                    <div className={styles.anomalyTitle}>{item.title}</div>
-                    <div className={styles.anomalyType}>{item.time}</div>
-                  </div>
-                  <span
-                    className={`${styles.anomalyBadge} ${styles[`anomaly-${item.severity}`]}`}
-                  >
-                    {item.severity}
-                  </span>
-                </div>
-                <div className={styles.anomalySummary}>{item.summary}</div>
-                <div className={styles.anomalyActions}>
-                  {item.actions.map((action) => (
-                    <span key={action} className={styles.anomalyAction}>
-                      {action}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-      &nbsp;
-      {findingsData && (
-        <Card>
-          <CardHeader
-            title="Security findings"
-            subtitle={`${findings.length} issue${findings.length === 1 ? "" : "s"} detected`}
-            action={
-              <select
-                className={`${inputStyles.input} ${inputStyles.select}`}
-                value={severityFilter ?? ""}
-                onChange={(event) => setSeverityFilter(event.target.value || null)}
-                aria-label="Filter findings by severity"
-              >
-                <option value="">All levels</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-                <option value="info">Info</option>
-              </select>
-            }
-          />
-          <FindingsList findings={findings} onFindingClick={setSelectedFinding} />
-        </Card>
-      )}
-
-      {selectedFinding && (
-        <FindingDetailModal
-          finding={selectedFinding}
-          onClose={() => setSelectedFinding(null)}
-          onExplain={handleExplainFinding}
-          onVerify={site.domain ? handleVerifyFinding : undefined}
-        />
-      )}
     </div>
   );
 }
