@@ -4,10 +4,13 @@ A lightweight log insight and security signal SaaS tool that turns raw access/er
 
 ## Features
 
-- **Log Ingestion**: Upload Apache/Nginx access and error logs
+- **Log Ingestion**: Upload Apache/Nginx access and error logs, or configure automated log sources
 - **Parsing & Normalization**: Structured event extraction with quality metrics
 - **Security Signals**: Rule-based detection for scanning, abuse, and misconfigurations
 - **Anomaly Detection**: Statistical baseline comparison for traffic and error spikes
+- **Error Tracking**: Automated error log parsing with grouping, deduplication, and trend analysis
+- **IP Filtering**: Filter traffic by IP address to hide internal/test traffic from analytics
+- **Scheduled Log Fetching**: Automated log collection from remote sources (SFTP, HTTP, S3)
 - **LLM Explanations**: Ollama-powered insights grounded in computed facts (optional)
 
 ## Architecture
@@ -53,6 +56,7 @@ docker-compose -f infra/docker-compose.yml exec api alembic -c infra/migrations/
 
 ### Access
 
+- **Frontend**: http://localhost:5173
 - **API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
 - **MinIO Console**: http://localhost:9001 (minioadmin/minioadmin)
@@ -90,13 +94,21 @@ docker-compose -f infra/docker-compose.yml -f infra/docker-compose.nogpu.yml up 
 - `GET /api/sites` - List all sites
 - `POST /api/sites` - Create a site
 - `GET /api/sites/{id}` - Get site details
-- `PUT /api/sites/{id}` - Update site
+- `PUT /api/sites/{id}` - Update site settings (including IP filtering)
 - `DELETE /api/sites/{id}` - Delete site
+- `GET /api/sites/{id}/dashboard` - Get dashboard analytics with IP filtering applied
 
 ### Uploads
 - `POST /api/sites/{id}/upload-url` - Get presigned upload URL
 - `POST /api/sites/{id}/uploads` - Confirm upload and start processing
 - `GET /api/sites/{id}/log-files` - List uploaded log files
+
+### Log Sources
+- `GET /api/sites/{id}/log-sources` - List configured log sources
+- `POST /api/sites/{id}/log-sources` - Create a new log source
+- `PUT /api/sites/{id}/log-sources/{source_id}` - Update log source
+- `DELETE /api/sites/{id}/log-sources/{source_id}` - Delete log source
+- `POST /api/sites/{id}/log-sources/{source_id}/fetch-now` - Trigger immediate fetch
 
 ### Jobs
 - `GET /api/jobs/{id}` - Get job details
@@ -104,8 +116,21 @@ docker-compose -f infra/docker-compose.yml -f infra/docker-compose.nogpu.yml up 
 - `GET /api/jobs` - List all jobs
 
 ### Findings
-- `GET /api/sites/{id}/findings` - List findings for a site
+- `GET /api/sites/{id}/findings` - List security findings for a site
 - `GET /api/sites/{id}/findings/{finding_id}` - Get a single finding
+- `POST /api/findings/{finding_id}/explain` - Get AI explanation for a finding
+- `POST /api/findings/{finding_id}/verify` - Verify finding with live probes
+
+### Error Tracking
+- `GET /api/sites/{id}/errors/groups` - List error groups
+- `GET /api/sites/{id}/errors/groups/{group_id}` - Get error group details
+- `GET /api/sites/{id}/errors/stats` - Get error statistics and trends
+- `PUT /api/sites/{id}/errors/groups/{group_id}` - Update error group status
+- `POST /api/sites/{id}/errors/groups/{group_id}/explain` - Get AI explanation
+- `POST /api/sites/{id}/errors/analyze` - Analyze error logs
+
+### Utilities
+- `GET /api/public-ip` - Discover client's public IP address
 
 ### Explain
 - `POST /api/sites/{id}/explain` - Explain findings/anomalies with Ollama
@@ -169,6 +194,30 @@ pytest
 - **Storage**: MinIO (S3-compatible)
 - **Auth**: JWT with refresh tokens
 
+## Key Features
+
+### IP Filtering & Privacy
+Hide traffic from specific IP addresses (e.g., your own public IP, internal IPs, CI/CD systems) to focus on real user traffic. Configured per-site in Settings:
+- Automatic public IP discovery tool
+- Server-side filtering applied to all analytics
+- Dashboard shows filtered metrics instantly
+
+### Scheduled Log Fetching
+Configure automated log collection from remote sources:
+- **SFTP**: Fetch from remote servers via SSH
+- **HTTP/HTTPS**: Download from web URLs
+- **S3**: Pull from S3-compatible storage
+- Flexible scheduling (hourly, daily, weekly, or cron expressions)
+- Automatic processing pipeline
+
+### Error Tracking
+Automated error log analysis with intelligent grouping:
+- Fingerprint-based deduplication
+- Trend analysis and occurrence tracking
+- Stack trace parsing and context extraction
+- Deployment-aware error grouping
+- AI-powered root cause explanations
+
 ## Roadmap
 
 - [x] Phase 1: Foundations (Auth, Sites, Uploads, Jobs)
@@ -177,6 +226,9 @@ pytest
 - [x] Phase 4: Anomaly Detection (Statistical baselines)
 - [x] Phase 5: Ollama Integration (LLM explanations)
 - [x] Phase 6: React Frontend
+- [x] Phase 7: Error Tracking & Analysis
+- [x] Phase 8: Scheduled Log Sources
+- [x] Phase 9: IP Filtering & Privacy Controls
 
 ## License
 

@@ -104,6 +104,43 @@ export function useCreateSite() {
   });
 }
 
+type UpdateSiteInput = {
+  name?: string;
+  domain?: string;
+  log_format?: string;
+  anomaly_baseline_days?: number;
+  anomaly_min_baseline_hours?: number;
+  anomaly_z_threshold?: number;
+  anomaly_new_path_min_count?: number;
+  filtered_ips?: string[];
+};
+
+export function useUpdateSite(siteId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdateSiteInput) =>
+      apiFetch<Site>(`/api/sites/${siteId}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sites"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", siteId] });
+    },
+  });
+}
+
+type PublicIPResponse = {
+  ip: string;
+};
+
+export function useGetPublicIP() {
+  return useMutation({
+    mutationFn: () => apiFetch<PublicIPResponse>("/api/public-ip"),
+  });
+}
+
 type UploadUrlResponse = {
   upload_url: string;
   log_file_id: string;

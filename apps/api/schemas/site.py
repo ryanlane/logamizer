@@ -17,6 +17,7 @@ class SiteCreate(BaseModel):
     anomaly_min_baseline_hours: int = Field(default=24, ge=1, le=168)
     anomaly_z_threshold: float = Field(default=3.0, ge=0.5, le=10.0)
     anomaly_new_path_min_count: int = Field(default=20, ge=1, le=10000)
+    filtered_ips: list[str] = Field(default_factory=list)
 
 
 class SiteUpdate(BaseModel):
@@ -29,6 +30,7 @@ class SiteUpdate(BaseModel):
     anomaly_min_baseline_hours: int | None = Field(default=None, ge=1, le=168)
     anomaly_z_threshold: float | None = Field(default=None, ge=0.5, le=10.0)
     anomaly_new_path_min_count: int | None = Field(default=None, ge=1, le=10000)
+    filtered_ips: list[str] | None = None
 
 
 class SiteResponse(BaseModel):
@@ -42,6 +44,7 @@ class SiteResponse(BaseModel):
     anomaly_min_baseline_hours: int
     anomaly_z_threshold: float
     anomaly_new_path_min_count: int
+    filtered_ips: list[str]
     created_at: datetime
     updated_at: datetime
 

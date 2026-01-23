@@ -44,7 +44,10 @@ function parseRoute(pathname: string, isAuthed: boolean): RouteState {
   }
 
   if (pathname.startsWith("/settings")) {
-    return { view: "settings", step: "welcome", siteId: null };
+    // Support /settings or /settings/{siteId}
+    const parts = pathname.split("/").filter(Boolean);
+    const siteId = parts[1] ?? null;
+    return { view: "settings", step: "welcome", siteId };
   }
 
   if (pathname.startsWith("/sites/")) {
@@ -80,7 +83,7 @@ function parseRoute(pathname: string, isAuthed: boolean): RouteState {
 
 function buildPath(view: AppView, step: WizardStep, siteId: string | null): string {
   if (view === "login") return "/login";
-  if (view === "settings") return "/settings";
+  if (view === "settings") return siteId ? `/settings/${siteId}` : "/settings";
   if (view === "site-detail" && siteId) return `/sites/${siteId}`;
   if (view === "log-sources" && siteId) return `/sites/${siteId}/log-sources`;
   if (view === "errors" && siteId) return `/sites/${siteId}/errors`;
@@ -255,8 +258,7 @@ export default function App() {
       setSelectedSiteId(null);
     } else if (path === "/settings") {
       setView("settings");
-      setSelectedSite(null);
-      setSelectedSiteId(null);
+      // Keep selectedSite and selectedSiteId when going to settings
     }
   }, []);
 
@@ -361,7 +363,16 @@ export default function App() {
       )}
 
       {view === "settings" && (
-        <SettingsPage onBack={() => setView("dashboard")} />
+        <SettingsPage
+          onBack={() => {
+            if (selectedSite || selectedSiteId) {
+              setView("site-detail");
+            } else {
+              setView("dashboard");
+            }
+          }}
+          siteId={selectedSiteId}
+        />
       )}
     </DashboardLayout>
   );

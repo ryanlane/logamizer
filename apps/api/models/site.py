@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from apps.api.database import Base
@@ -49,6 +49,12 @@ class Site(Base):
     anomaly_new_path_min_count: Mapped[int] = mapped_column(
         nullable=False,
         default=20,
+    )
+    filtered_ips: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default="[]",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

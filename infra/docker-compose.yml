@@ -89,7 +89,7 @@ services:
       context: ..
       dockerfile: infra/Dockerfile.worker
     environment:
-      - DATABASE_URL=postgresql+asyncpg://logamizer:logamizer@postgres:5432/logamizer
+      - DATABASE_URL=postgresql://logamizer:logamizer@postgres:5432/logamizer
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - S3_ENDPOINT_URL=http://minio:9000
@@ -114,7 +114,7 @@ services:
       dockerfile: infra/Dockerfile.worker
     command: celery -A apps.worker.celery_app beat --loglevel=info
     environment:
-      - DATABASE_URL=postgresql+asyncpg://logamizer:logamizer@postgres:5432/logamizer
+      - DATABASE_URL=postgresql://logamizer:logamizer@postgres:5432/logamizer
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - S3_ENDPOINT_URL=http://minio:9000
@@ -132,7 +132,7 @@ services:
 
   # Ollama for LLM-powered explanations
   ollama:
-    image: ollama/ollama:latest
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.14.3}
     volumes:
       - ollama_data:/root/.ollama
     ports:
@@ -146,7 +146,7 @@ services:
 
   # Ollama model puller (runs once to download the model)
   ollama-pull:
-    image: ollama/ollama:latest
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.14.3}
     depends_on:
       ollama:
         condition: service_healthy

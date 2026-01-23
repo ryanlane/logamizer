@@ -3,6 +3,13 @@ export type Site = {
   name: string;
   domain: string | null;
   log_format: string;
+  anomaly_baseline_days: number;
+  anomaly_min_baseline_hours: number;
+  anomaly_z_threshold: number;
+  anomaly_new_path_min_count: number;
+  filtered_ips: string[];
+  created_at: string;
+  updated_at: string;
 };
 
 export type Aggregate = {

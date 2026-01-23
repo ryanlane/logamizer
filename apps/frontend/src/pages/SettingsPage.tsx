@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "../components/Button";
 import { Card, CardHeader } from "../components/Card";
 import { apiFetch, getStoredToken } from "../api/client";
-import { useUserSettings } from "../utils/settings";
+import { useSites, useUpdateSite, useGetPublicIP } from "../api/hooks";
 import styles from "./SettingsPage.module.css";
 
 type OllamaModel = {
@@ -13,9 +13,10 @@ type OllamaModel = {
 
 type Props = {
   onBack: () => void;
+  siteId?: string | null;
 };
 
-export function SettingsPage({ onBack }: Props) {
+export function SettingsPage({ onBack, siteId }: Props) {
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [newModelName, setNewModelName] = useState<string>("");
@@ -26,10 +27,13 @@ export function SettingsPage({ onBack }: Props) {
   const [pullPercent, setPullPercent] = useState<number | null>(null);
   const [pullDetail, setPullDetail] = useState<string>("");
 
-  const { settings, updateSettings } = useUserSettings();
+  const { data: sitesData } = useSites();
+  const site = sitesData?.sites.find((s) => s.id === siteId);
+  const updateSite = useUpdateSite(siteId || "");
+  const getPublicIP = useGetPublicIP();
+
   const [hiddenIpsText, setHiddenIpsText] = useState<string>("");
   const [publicIp, setPublicIp] = useState<string | null>(null);
-  const [isDetectingIp, setIsDetectingIp] = useState(false);
   const [ipError, setIpError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,8 +42,10 @@ export function SettingsPage({ onBack }: Props) {
   }, []);
 
   useEffect(() => {
-    setHiddenIpsText(settings.hiddenIps.join("\n"));
-  }, [settings.hiddenIps]);
+    if (site?.filtered_ips) {
+      setHiddenIpsText(site.filtered_ips.join("\n"));
+    }
+  }, [site?.filtered_ips]);
 
   async function loadModels() {
     setIsLoading(true);
@@ -188,29 +194,33 @@ export function SettingsPage({ onBack }: Props) {
     );
   }
 
-  function handleSaveHiddenIps() {
-    updateSettings({ hiddenIps: normalizeIps(hiddenIpsText) });
+  async function handleSaveHiddenIps() {
+    if (!siteId) return;
+    try {
+      await updateSite.mutateAsync({ filtered_ips: normalizeIps(hiddenIpsText) });
+    } catch (err) {
+      setIpError((err as Error).message);
+    }
   }
 
-  function handleAddDetectedIp() {
-    if (!publicIp) return;
+  async function handleAddDetectedIp() {
+    if (!publicIp || !siteId) return;
     const next = normalizeIps(`${hiddenIpsText}\n${publicIp}`);
-    updateSettings({ hiddenIps: next });
+    try {
+      await updateSite.mutateAsync({ filtered_ips: next });
+      setPublicIp(null);
+    } catch (err) {
+      setIpError((err as Error).message);
+    }
   }
 
   async function handleDetectPublicIp() {
-    setIsDetectingIp(true);
     setIpError(null);
     try {
-      const response = await fetch("https://api.ipify.org?format=json");
-      if (!response.ok) throw new Error("Failed to detect public IP");
-      const data = (await response.json()) as { ip?: string };
-      if (!data.ip) throw new Error("No IP returned");
+      const data = await getPublicIP.mutateAsync();
       setPublicIp(data.ip);
     } catch (err) {
       setIpError((err as Error).message);
-    } finally {
-      setIsDetectingIp(false);
     }
   }
 
@@ -355,53 +365,78 @@ export function SettingsPage({ onBack }: Props) {
 
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Hidden IP addresses</h3>
-          <p className={styles.sectionDescription}>
-            Add IPs you want excluded from Top IPs and day summaries. One per line or
-            comma-separated.
-          </p>
-          <textarea
-            className={styles.textarea}
-            rows={5}
-            value={hiddenIpsText}
-            onChange={(event) => setHiddenIpsText(event.target.value)}
-            placeholder="203.0.113.10\n198.51.100.42"
-          />
-          <div className={styles.actionsRow}>
-            <Button size="sm" variant="secondary" onClick={handleSaveHiddenIps}>
-              Save hidden IPs
-            </Button>
-            {settings.hiddenIps.length > 0 && (
-              <span className={styles.helperText}>
-                {settings.hiddenIps.length} IP{settings.hiddenIps.length === 1 ? "" : "s"} hidden
-              </span>
-            )}
-          </div>
+          {!siteId ? (
+            <p className={styles.sectionDescription}>
+              Select a site to configure IP filtering.
+            </p>
+          ) : (
+            <>
+              <p className={styles.sectionDescription}>
+                Add IPs you want excluded from Top IPs and day summaries. One per line or
+                comma-separated.
+              </p>
+              <textarea
+                className={styles.textarea}
+                rows={5}
+                value={hiddenIpsText}
+                onChange={(event) => setHiddenIpsText(event.target.value)}
+                placeholder="203.0.113.10&#10;198.51.100.42"
+              />
+              <div className={styles.actionsRow}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleSaveHiddenIps}
+                  isLoading={updateSite.isPending}
+                >
+                  Save hidden IPs
+                </Button>
+                {site?.filtered_ips && site.filtered_ips.length > 0 && (
+                  <span className={styles.helperText}>
+                    {site.filtered_ips.length} IP{site.filtered_ips.length === 1 ? "" : "s"} hidden
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <div className={styles.divider} />
 
         <div className={styles.section}>
           <h3 className={styles.sectionTitle}>Detect your public IP</h3>
-          <p className={styles.sectionDescription}>
-            Use this to discover your current public IP, then add it to the hidden list.
-          </p>
-          <div className={styles.actionsRow}>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleDetectPublicIp}
-              isLoading={isDetectingIp}
-            >
-              Detect public IP
-            </Button>
-            {publicIp && <span className={styles.publicIp}>{publicIp}</span>}
-            {publicIp && (
-              <Button size="sm" onClick={handleAddDetectedIp}>
-                Add to hidden list
-              </Button>
-            )}
-          </div>
-          {ipError && <div className={styles.inlineError}>{ipError}</div>}
+          {!siteId ? (
+            <p className={styles.sectionDescription}>
+              Select a site to detect and filter your public IP.
+            </p>
+          ) : (
+            <>
+              <p className={styles.sectionDescription}>
+                Use this to discover your current public IP, then add it to the hidden list.
+              </p>
+              <div className={styles.actionsRow}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleDetectPublicIp}
+                  isLoading={getPublicIP.isPending}
+                >
+                  Detect public IP
+                </Button>
+                {publicIp && <span className={styles.publicIp}>{publicIp}</span>}
+                {publicIp && (
+                  <Button
+                    size="sm"
+                    onClick={handleAddDetectedIp}
+                    isLoading={updateSite.isPending}
+                  >
+                    Add to hidden list
+                  </Button>
+                )}
+              </div>
+              {ipError && <div className={styles.inlineError}>{ipError}</div>}
+            </>
+          )}
         </div>
       </Card>
     </div>

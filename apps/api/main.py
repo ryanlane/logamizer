@@ -19,6 +19,7 @@ from apps.api.routers import (
 )
 from apps.api.routers.aggregates import router as aggregates_router
 from apps.api.routers.errors import router as errors_router
+from apps.api.routers.utils import router as utils_router
 
 settings = get_settings()
 
@@ -59,6 +60,7 @@ app.include_router(explain_router, prefix="/api")
 app.include_router(ollama_router, prefix="/api")
 app.include_router(log_sources_router, prefix="/api")
 app.include_router(errors_router)
+app.include_router(utils_router, prefix="/api")
 
 
 @app.get("/health")

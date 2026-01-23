@@ -114,6 +114,8 @@ async def get_dashboard(
     status_5xx = sum(a.status_5xx for a in aggregates)
 
     # Get unique IPs and paths (approximate from top lists)
+    # Apply IP filtering based on site settings
+    filtered_ips_set = set(site.filtered_ips) if site.filtered_ips else set()
     all_ips = set()
     all_paths = set()
     path_counts: dict[str, int] = {}
@@ -124,7 +126,7 @@ async def get_dashboard(
             for item in agg.top_ips:
                 ip = item.get("ip")
                 count = item.get("count", 0)
-                if ip:
+                if ip and ip not in filtered_ips_set:
                     all_ips.add(ip)
                     ip_counts[ip] = ip_counts.get(ip, 0) + count
         if agg.top_paths:
